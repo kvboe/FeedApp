@@ -30,7 +30,7 @@
             hx-post="/feed"
             hx-target="#entries"
             hx-swap="outerHTML"
-            hx-include="#notes"
+            hx-include="#notes,#filters"
           >
             <label class="text-sm text-slate-400" for="amount_ml">Amount (ml)</label>
             <input
@@ -50,7 +50,7 @@
                   type="number"
                   min="0"
                   value="0"
-                  class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
               </div>
               <div>
@@ -59,7 +59,7 @@
                   id="created_at"
                   name="created_at"
                   type="datetime-local"
-                  class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
               </div>
             </div>
@@ -83,9 +83,49 @@
             id="notes"
             name="notes"
             rows="3"
-            class="mt-3 w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            class="mt-3 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
             placeholder="Optional notes..."
           ></textarea>
+        </div>
+
+        <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 shadow-sm">
+          <h2 class="text-lg font-semibold">Filter by Date</h2>
+          <form
+            id="filters"
+            class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3"
+            hx-get="/entries"
+            hx-target="#entries"
+            hx-swap="outerHTML"
+          >
+            <div>
+              <label class="text-sm text-slate-400" for="start_date">From</label>
+              <input
+                id="start_date"
+                name="start_date"
+                type="date"
+                value="{{ start_date }}"
+                class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            </div>
+            <div>
+              <label class="text-sm text-slate-400" for="end_date">To</label>
+              <input
+                id="end_date"
+                name="end_date"
+                type="date"
+                value="{{ end_date }}"
+                class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            </div>
+            <div class="sm:col-span-2 flex justify-end">
+              <button
+                type="submit"
+                class="rounded-lg bg-slate-800 text-slate-100 text-xs font-semibold px-3 py-2 hover:bg-slate-700"
+              >
+                Apply Filter
+              </button>
+            </div>
+          </form>
         </div>
 
         {% include "_entries.html" %}
