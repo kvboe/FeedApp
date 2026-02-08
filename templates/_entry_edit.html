@@ -10,6 +10,21 @@
     </div>
 
     {% if entry.type == 'feed' %}
+      <div class="grid grid-cols-2 bg-slate-800 p-1 rounded-xl mb-3">
+        <label class="cursor-pointer">
+          <input type="radio" name="subtype" value="formula" class="peer sr-only" {% if not entry.subtype or entry.subtype == 'formula' %}checked{% endif %}>
+          <div class="rounded-lg py-2 text-center text-sm font-medium text-slate-400 peer-checked:bg-cyan-500 peer-checked:text-slate-900 transition-all">
+            Formula
+          </div>
+        </label>
+        <label class="cursor-pointer">
+          <input type="radio" name="subtype" value="breast_milk" class="peer sr-only" {% if entry.subtype == 'breast_milk' %}checked{% endif %}>
+          <div class="rounded-lg py-2 text-center text-sm font-medium text-slate-400 peer-checked:bg-pink-500 peer-checked:text-white transition-all">
+            Mother's
+          </div>
+        </label>
+      </div>
+
       <div>
         <label class="text-sm text-slate-400" for="amount_ml_{{ entry.id }}">Amount (ml)</label>
         <input

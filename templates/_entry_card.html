@@ -1,8 +1,16 @@
-{% set type_class = 'border-cyan-500/60 bg-slate-900/40' if entry.type == 'feed' else 'border-emerald-500/60 bg-slate-900/40' if entry.type == 'sleep' else 'border-amber-400/60 bg-slate-900/40' %}
+{% set type_class = 'border-cyan-500/60 bg-slate-900/40' if entry.type == 'feed' else 'border-emerald-500/60 bg-slate-900/40' if entry.type == 'sleep' else 'border-purple-500/60 bg-slate-900/40' if entry.type == 'weight' else 'border-amber-400/60 bg-slate-900/40' %}
 <div id="entry-{{ entry.id }}" class="rounded-xl border-l-4 {{ type_class }} border border-slate-800 p-3">
   <div class="flex items-center justify-between">
     <span class="text-sm uppercase tracking-wide text-slate-400">
-      {% if entry.type == 'feed' %}🍼{% elif entry.type == 'sleep' %}🌙{% else %}📌{% endif %}
+      {% if entry.type == 'feed' %}
+        {% if entry.subtype == 'breast_milk' %}🤱 Mother's{% else %}🍼 Formula{% endif %}
+      {% elif entry.type == 'sleep' %}
+        🌙
+      {% elif entry.type == 'weight' %}
+        ⚖️
+      {% else %}
+        📌
+      {% endif %}
     </span>
     <span class="text-xs text-slate-500">{{ format_datetime(entry.created_at) }}</span>
   </div>
@@ -11,6 +19,8 @@
       {{ entry.amount_ml }} ml
     {% elif entry.type == 'sleep' %}
       {{ format_duration(entry.duration_sec) }}
+    {% elif entry.type == 'weight' %}
+      {{ entry.amount_ml }} g
     {% endif %}
   </div>
   {% if entry.notes %}
