@@ -13,7 +13,7 @@
   <form
     hx-post="/sleep/toggle"
     hx-swap="none"
-    hx-include="#notes,#filters"
+    hx-include="#sleep-notes"
   >
     {% if sleep_state.active %}
       <button
@@ -32,3 +32,10 @@
     {% endif %}
   </form>
 </div>
+<input
+  id="sleep-notes"
+  name="notes"
+  type="text"
+  placeholder="📝 Notes"
+  class="mt-3 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+ />
