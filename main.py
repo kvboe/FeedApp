@@ -64,16 +64,30 @@ def _now_iso() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
-def _get_entries(limit: int = 10) -> list[sqlite3.Row]:
+def _get_entries(
+    limit: int = 10,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[sqlite3.Row]:
+    query = "SELECT * FROM events"
+    clauses: list[str] = []
+    params: list[Any] = []
+
+    if start_date:
+        clauses.append("date(created_at) >= date(?)")
+        params.append(start_date)
+    if end_date:
+        clauses.append("date(created_at) <= date(?)")
+        params.append(end_date)
+
+    if clauses:
+        query += " WHERE " + " AND ".join(clauses)
+
+    query += " ORDER BY datetime(created_at) DESC LIMIT ?;"
+    params.append(limit)
+
     with _connect() as conn:
-        rows = conn.execute(
-            """
-            SELECT * FROM events
-            ORDER BY datetime(created_at) DESC
-            LIMIT ?;
-            """,
-            (limit,),
-        ).fetchall()
+        rows = conn.execute(query, params).fetchall()
     return list(rows)
 
 
@@ -138,7 +152,9 @@ def _get_entry(entry_id: int) -> sqlite3.Row | None:
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request) -> HTMLResponse:
-    entries = _get_entries()
+    start_date = request.query_params.get("start_date") or None
+    end_date = request.query_params.get("end_date") or None
+    entries = _get_entries(start_date=start_date, end_date=end_date)
     sleep_state = _get_sleep_state()
     return templates.TemplateResponse(
         "index.html",
@@ -149,6 +165,8 @@ def index(request: Request) -> HTMLResponse:
             "format_duration": _format_duration,
             "format_datetime": _format_datetime,
             "format_datetime_input": _format_datetime_input,
+            "start_date": start_date or "",
+            "end_date": end_date or "",
             "app_name": APP_NAME,
         },
     )
@@ -156,7 +174,9 @@ def index(request: Request) -> HTMLResponse:
 
 @app.get("/entries", response_class=HTMLResponse)
 def entries_partial(request: Request) -> HTMLResponse:
-    entries = _get_entries()
+    start_date = request.query_params.get("start_date") or None
+    end_date = request.query_params.get("end_date") or None
+    entries = _get_entries(start_date=start_date, end_date=end_date)
     return templates.TemplateResponse(
         "_entries.html",
         {
@@ -165,6 +185,8 @@ def entries_partial(request: Request) -> HTMLResponse:
             "format_duration": _format_duration,
             "format_datetime": _format_datetime,
             "format_datetime_input": _format_datetime_input,
+            "start_date": start_date or "",
+            "end_date": end_date or "",
         },
     )
 
@@ -176,6 +198,8 @@ def log_feed(
     notes: str = Form(""),
     created_at: str = Form(""),
     minutes_ago: int = Form(0),
+    start_date: str = Form(""),
+    end_date: str = Form(""),
 ) -> HTMLResponse:
     now_dt = datetime.now()
     created_at_dt = now_dt - timedelta(minutes=minutes_ago or 0)
@@ -190,7 +214,10 @@ def log_feed(
         )
         conn.commit()
 
-    entries = _get_entries()
+    entries = _get_entries(
+        start_date=start_date or None,
+        end_date=end_date or None,
+    )
     return templates.TemplateResponse(
         "_entries.html",
         {
@@ -199,12 +226,19 @@ def log_feed(
             "format_duration": _format_duration,
             "format_datetime": _format_datetime,
             "format_datetime_input": _format_datetime_input,
+            "start_date": start_date or "",
+            "end_date": end_date or "",
         },
     )
 
 
 @app.post("/sleep/toggle", response_class=HTMLResponse)
-def toggle_sleep(request: Request, notes: str = Form("")) -> HTMLResponse:
+def toggle_sleep(
+    request: Request,
+    notes: str = Form(""),
+    start_date: str = Form(""),
+    end_date: str = Form(""),
+) -> HTMLResponse:
     now = _now_iso()
     with _connect() as conn:
         row = conn.execute(
@@ -238,7 +272,10 @@ def toggle_sleep(request: Request, notes: str = Form("")) -> HTMLResponse:
             )
         conn.commit()
 
-    entries = _get_entries()
+    entries = _get_entries(
+        start_date=start_date or None,
+        end_date=end_date or None,
+    )
     sleep_state = _get_sleep_state()
 
     return templates.TemplateResponse(
@@ -250,6 +287,8 @@ def toggle_sleep(request: Request, notes: str = Form("")) -> HTMLResponse:
             "format_duration": _format_duration,
             "format_datetime": _format_datetime,
             "format_datetime_input": _format_datetime_input,
+            "start_date": start_date or "",
+            "end_date": end_date or "",
             "oob": True,
         },
     )

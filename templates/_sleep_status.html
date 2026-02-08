@@ -10,7 +10,7 @@
   <form
     hx-post="/sleep/toggle"
     hx-swap="none"
-    hx-include="#notes"
+    hx-include="#notes,#filters"
   >
     {% if sleep_state.active %}
       <button
