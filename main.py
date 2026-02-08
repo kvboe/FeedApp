@@ -454,7 +454,7 @@ def log_feed(
         end_date=end_date or None,
     )
     stats = _get_stats()
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         "_feed_response.html",
         {
             "request": request,
@@ -469,6 +469,8 @@ def log_feed(
             "end_date": end_date or "",
         },
     )
+    response.headers["HX-Trigger"] = '{"showToast": "Feed logged!"}'
+    return response
 
 
 @app.post("/sleep/toggle", response_class=HTMLResponse)
@@ -518,7 +520,7 @@ def toggle_sleep(
     sleep_state = _get_sleep_state()
     stats = _get_stats()
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         "_sleep_toggle_response.html",
         {
             "request": request,
@@ -537,6 +539,11 @@ def toggle_sleep(
             "oob": True,
         },
     )
+    if sleep_state["active"]:
+        response.headers["HX-Trigger"] = '{"showToast": "Sleep started... 💤"}'
+    else:
+        response.headers["HX-Trigger"] = '{"showToast": "Sleep logged! ☀️"}'
+    return response
 
 
 @app.get("/entries/{entry_id}/edit", response_class=HTMLResponse)
@@ -645,7 +652,7 @@ def update_entry(
 
     updated = _get_entry(entry_id)
     stats = _get_stats()
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         "_entry_update_response.html",
         {
             "request": request,
@@ -657,6 +664,8 @@ def update_entry(
             "format_datetime": _format_datetime,
         },
     )
+    response.headers["HX-Trigger"] = '{"showToast": "Entry updated!"}'
+    return response
 
 
 @app.delete("/entries/{entry_id}", response_class=HTMLResponse)
@@ -664,7 +673,9 @@ def delete_entry(entry_id: int) -> HTMLResponse:
     with _connect() as conn:
         conn.execute("DELETE FROM events WHERE id = ?", (entry_id,))
         conn.commit()
-    return HTMLResponse(status_code=200, content="")
+    response = HTMLResponse(status_code=200, content="")
+    response.headers["HX-Trigger"] = '{"showToast": "Entry deleted!"}'
+    return response
 
 
 @app.get("/settings", response_class=HTMLResponse)
@@ -715,6 +726,8 @@ def log_weight(
     # Actually, if called from index, we might want to reload stats or something.
     # Let's just return 200 OK for now and let HTMX handle it.
 
-    return HTMLResponse(
+    response = HTMLResponse(
         status_code=200, content="<script>window.location.reload()</script>"
     )
+    response.headers["HX-Trigger"] = '{"showToast": "Weight logged!"}'
+    return response
