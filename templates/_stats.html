@@ -1,8 +1,15 @@
-<div id="stats" class="grid grid-cols-1 gap-3 sm:grid-cols-3" {% if stats_oob %}hx-swap-oob="outerHTML"{% endif %}>
+<div
+  id="stats"
+  class="grid grid-cols-1 gap-3 sm:grid-cols-3"
+  hx-get="/stats"
+  hx-trigger="load, every 30s"
+  hx-swap="outerHTML"
+  {% if stats_oob %}hx-swap-oob="outerHTML"{% endif %}
+>
   <div class="rounded-2xl bg-slate-900 border border-slate-800 p-3">
     <div class="flex items-center gap-2 text-sm font-semibold">
       <span>🍼</span>
-      <span>Last</span>
+      <span>Last feed</span>
     </div>
     <div class="mt-2 text-sm text-slate-200">
       {% if stats.last_feed %}
@@ -16,7 +23,7 @@
   <div class="rounded-2xl bg-slate-900 border border-slate-800 p-3">
     <div class="flex items-center gap-2 text-sm font-semibold">
       <span>🌙</span>
-      <span>Now</span>
+      <span>Current sleep time</span>
     </div>
     <div class="mt-2 text-sm text-slate-200">
       {% if stats.sleep_active %}
@@ -30,7 +37,7 @@
   <div class="rounded-2xl bg-slate-900 border border-slate-800 p-3">
     <div class="flex items-center gap-2 text-sm font-semibold">
       <span>🕒</span>
-      <span>Prev</span>
+      <span>Previous sleep time</span>
     </div>
     <div class="mt-2 text-sm text-slate-200">
       {% if stats.last_sleep %}

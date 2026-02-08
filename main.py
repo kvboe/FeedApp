@@ -240,6 +240,21 @@ def history(request: Request) -> HTMLResponse:
     )
 
 
+@app.get("/stats", response_class=HTMLResponse)
+def stats_partial(request: Request) -> HTMLResponse:
+    stats = _get_stats()
+    return templates.TemplateResponse(
+        "_stats.html",
+        {
+            "request": request,
+            "stats": stats,
+            "stats_oob": False,
+            "format_duration": _format_duration,
+            "format_datetime": _format_datetime,
+        },
+    )
+
+
 @app.get("/entries", response_class=HTMLResponse)
 def entries_partial(request: Request) -> HTMLResponse:
     start_date = request.query_params.get("start_date") or None
