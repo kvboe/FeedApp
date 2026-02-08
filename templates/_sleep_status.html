@@ -12,7 +12,8 @@
   </div>
   <form
     hx-post="/sleep/toggle"
-    hx-swap="none"
+    hx-target="#sleep-status"
+    hx-swap="outerHTML"
     hx-include="#sleep-notes"
   >
     {% if sleep_state.active %}
