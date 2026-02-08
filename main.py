@@ -158,6 +158,18 @@ def _format_duration(seconds: int | None) -> str:
     return f"{minutes}m"
 
 
+def _format_since(value: str | None) -> str:
+    if not value:
+        return ""
+    try:
+        dt = datetime.fromisoformat(value)
+    except ValueError:
+        return ""
+    delta = datetime.now() - dt
+    seconds = max(0, int(delta.total_seconds()))
+    return _format_duration(seconds)
+
+
 def _format_datetime(value: str | None) -> str:
     if not value:
         return ""
@@ -209,6 +221,7 @@ def index(request: Request) -> HTMLResponse:
             "sleep_state": sleep_state,
             "stats": stats,
             "format_duration": _format_duration,
+            "format_since": _format_since,
             "format_datetime": _format_datetime,
             "format_datetime_input": _format_datetime_input,
             "start_date": start_date or "",
@@ -250,6 +263,7 @@ def stats_partial(request: Request) -> HTMLResponse:
             "stats": stats,
             "stats_oob": False,
             "format_duration": _format_duration,
+            "format_since": _format_since,
             "format_datetime": _format_datetime,
         },
     )
@@ -310,6 +324,7 @@ def log_feed(
             "stats": stats,
             "stats_oob": False,
             "format_duration": _format_duration,
+            "format_since": _format_since,
             "format_datetime": _format_datetime,
             "format_datetime_input": _format_datetime_input,
             "start_date": start_date or "",
@@ -374,6 +389,7 @@ def toggle_sleep(
             "stats": stats,
             "stats_oob": True,
             "format_duration": _format_duration,
+            "format_since": _format_since,
             "format_datetime": _format_datetime,
             "format_datetime_input": _format_datetime_input,
             "start_date": start_date or "",
@@ -465,6 +481,7 @@ def update_entry(
             "stats": stats,
             "stats_oob": True,
             "format_duration": _format_duration,
+            "format_since": _format_since,
             "format_datetime": _format_datetime,
         },
     )
