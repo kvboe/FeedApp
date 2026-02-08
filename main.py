@@ -218,6 +218,7 @@ def index(request: Request) -> HTMLResponse:
         },
     )
 
+
 @app.get("/history", response_class=HTMLResponse)
 def history(request: Request) -> HTMLResponse:
     start_date = request.query_params.get("start_date") or None
