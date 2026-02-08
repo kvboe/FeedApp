@@ -52,6 +52,20 @@ def _init_db() -> None:
             );
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            );
+            """
+        )
+        # Ensure subtype column exists
+        try:
+            conn.execute("ALTER TABLE events ADD COLUMN subtype TEXT;")
+        except sqlite3.OperationalError:
+            pass  # column likely exists
+
         conn.commit()
 
 
@@ -62,6 +76,26 @@ def on_startup() -> None:
 
 def _now_iso() -> str:
     return datetime.now().isoformat(timespec="seconds")
+
+
+def _get_setting(key: str) -> str | None:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT value FROM settings WHERE key = ?;", (key,)
+        ).fetchone()
+    return row["value"] if row else None
+
+
+def _set_setting(key: str, value: str) -> None:
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO settings (key, value) VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+            """,
+            (key, value),
+        )
+        conn.commit()
 
 
 def _get_entries(
@@ -288,6 +322,16 @@ def index(request: Request) -> HTMLResponse:
     sleep_state = _get_sleep_state()
     stats = _get_stats()
     chart_data = _get_daily_chart_data()
+
+    birthdate_str = _get_setting("birthdate")
+    age_days = None
+    if birthdate_str:
+        try:
+            birth_date = datetime.strptime(birthdate_str, "%Y-%m-%d").date()
+            age_days = (datetime.now().date() - birth_date).days
+        except ValueError:
+            pass
+
     return templates.TemplateResponse(
         "index.html",
         {
@@ -295,6 +339,7 @@ def index(request: Request) -> HTMLResponse:
             "sleep_state": sleep_state,
             "stats": stats,
             "chart_data": chart_data,
+            "age_days": age_days,
             "format_duration": _format_duration,
             "format_since": _format_since,
             "format_datetime": _format_datetime,
@@ -379,6 +424,7 @@ def entries_partial(request: Request) -> HTMLResponse:
 def log_feed(
     request: Request,
     amount_ml: int = Form(120),
+    subtype: str = Form("formula"),
     notes: str = Form(""),
     created_at: str = Form(""),
     created_date: str = Form(""),
@@ -396,10 +442,10 @@ def log_feed(
     with _connect() as conn:
         conn.execute(
             """
-            INSERT INTO events (type, amount_ml, notes, created_at)
-            VALUES (?, ?, ?, ?);
+            INSERT INTO events (type, subtype, amount_ml, notes, created_at)
+            VALUES (?, ?, ?, ?, ?);
             """,
-            ("feed", amount_ml, notes.strip() or None, created_at),
+            ("feed", subtype, amount_ml, notes.strip() or None, created_at),
         )
         conn.commit()
 
@@ -517,6 +563,7 @@ def update_entry(
     entry_id: int,
     request: Request,
     amount_ml: int | None = Form(None),
+    subtype: str | None = Form(None),
     created_at: str = Form(""),
     created_date: str = Form(""),
     created_time: str = Form(""),
@@ -535,6 +582,11 @@ def update_entry(
 
     if entry["type"] == "feed":
         amount = amount_ml if amount_ml is not None else entry["amount_ml"]
+        subtype_val = (
+            subtype
+            if subtype is not None
+            else (entry["subtype"] if "subtype" in entry.keys() else None)
+        )
         if created_date or created_time:
             created_at_value = _parse_date_time_input(
                 created_date, created_time, now_dt
@@ -545,10 +597,16 @@ def update_entry(
             conn.execute(
                 """
                 UPDATE events
-                SET amount_ml = ?, notes = ?, created_at = ?
+                SET amount_ml = ?, subtype = ?, notes = ?, created_at = ?
                 WHERE id = ?;
                 """,
-                (amount, notes.strip() or None, created_at_value, entry_id),
+                (
+                    amount,
+                    subtype_val,
+                    notes.strip() or None,
+                    created_at_value,
+                    entry_id,
+                ),
             )
             conn.commit()
     else:
@@ -607,3 +665,56 @@ def delete_entry(entry_id: int) -> HTMLResponse:
         conn.execute("DELETE FROM events WHERE id = ?", (entry_id,))
         conn.commit()
     return HTMLResponse(status_code=200, content="")
+
+
+@app.get("/settings", response_class=HTMLResponse)
+def settings_page(request: Request) -> HTMLResponse:
+    birthdate = _get_setting("birthdate") or ""
+    return templates.TemplateResponse(
+        "settings.html",
+        {
+            "request": request,
+            "birthdate": birthdate,
+            "active_page": "settings",
+            "app_name": APP_NAME,
+        },
+    )
+
+
+@app.post("/settings", response_class=HTMLResponse)
+def save_settings(request: Request, birthdate: str = Form("")) -> HTMLResponse:
+    if birthdate:
+        _set_setting("birthdate", birthdate)
+    return settings_page(request)
+
+
+@app.post("/weight", response_class=HTMLResponse)
+def log_weight(
+    request: Request,
+    weight_g: int = Form(...),
+    notes: str = Form(""),
+    created_at: str = Form(""),
+) -> HTMLResponse:
+    now_dt = datetime.now()
+    created_at = _parse_datetime_input(created_at, now_dt)
+
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO events (type, amount_ml, notes, created_at)
+            VALUES (?, ?, ?, ?);
+            """,
+            ("weight", weight_g, notes.strip() or None, created_at),
+        )
+        conn.commit()
+
+    # Return stats or empty response, for now just empty to close modal/reset form if we use one
+    # Or simpler: redirect to home or return feed response (which reloads list)
+    # Let's return the updated feed/history list if we want to show it there.
+    # For now, let's just return a success indicator or reload the page.
+    # Actually, if called from index, we might want to reload stats or something.
+    # Let's just return 200 OK for now and let HTMX handle it.
+
+    return HTMLResponse(
+        status_code=200, content="<script>window.location.reload()</script>"
+    )
