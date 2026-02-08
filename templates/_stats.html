@@ -1,0 +1,43 @@
+<div id="stats" class="grid grid-cols-1 gap-3 sm:grid-cols-3" {% if stats_oob %}hx-swap-oob="outerHTML"{% endif %}>
+  <div class="rounded-2xl bg-slate-900 border border-slate-800 p-3">
+    <div class="flex items-center gap-2 text-sm font-semibold">
+      <span>🍼</span>
+      <span>Last</span>
+    </div>
+    <div class="mt-2 text-sm text-slate-200">
+      {% if stats.last_feed %}
+        {{ stats.last_feed["amount_ml"] }} ml · {{ format_datetime(stats.last_feed["created_at"]) }}
+      {% else %}
+        —
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="rounded-2xl bg-slate-900 border border-slate-800 p-3">
+    <div class="flex items-center gap-2 text-sm font-semibold">
+      <span>🌙</span>
+      <span>Now</span>
+    </div>
+    <div class="mt-2 text-sm text-slate-200">
+      {% if stats.sleep_active %}
+        {{ format_duration(stats.current_sleep_duration) }}
+      {% else %}
+        —
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="rounded-2xl bg-slate-900 border border-slate-800 p-3">
+    <div class="flex items-center gap-2 text-sm font-semibold">
+      <span>🕒</span>
+      <span>Prev</span>
+    </div>
+    <div class="mt-2 text-sm text-slate-200">
+      {% if stats.last_sleep %}
+        {{ format_duration(stats.last_sleep["duration_sec"]) }}
+      {% else %}
+        —
+      {% endif %}
+    </div>
+  </div>
+</div>

@@ -101,6 +101,52 @@ def _get_sleep_state() -> dict[str, Any]:
     return {"active": True, "started_at": row["started_at"]}
 
 
+def _get_stats() -> dict[str, Any]:
+    now_dt = datetime.now()
+    with _connect() as conn:
+        last_feed = conn.execute(
+            """
+            SELECT amount_ml, created_at
+            FROM events
+            WHERE type = 'feed'
+            ORDER BY datetime(created_at) DESC
+            LIMIT 1;
+            """
+        ).fetchone()
+        last_sleep = conn.execute(
+            """
+            SELECT duration_sec, ended_at
+            FROM events
+            WHERE type = 'sleep'
+            ORDER BY datetime(created_at) DESC
+            LIMIT 1;
+            """
+        ).fetchone()
+        sleep_row = conn.execute(
+            "SELECT started_at FROM sleep_state WHERE id = 1;"
+        ).fetchone()
+
+    sleep_active = False
+    current_sleep_duration = None
+    sleep_started_at = None
+    if sleep_row:
+        sleep_active = True
+        sleep_started_at = sleep_row["started_at"]
+        try:
+            started_dt = datetime.fromisoformat(sleep_started_at)
+            current_sleep_duration = int((now_dt - started_dt).total_seconds())
+        except ValueError:
+            current_sleep_duration = None
+
+    return {
+        "last_feed": last_feed,
+        "last_sleep": last_sleep,
+        "sleep_active": sleep_active,
+        "sleep_started_at": sleep_started_at,
+        "current_sleep_duration": current_sleep_duration,
+    }
+
+
 def _format_duration(seconds: int | None) -> str:
     if not seconds:
         return "0m"
@@ -154,19 +200,40 @@ def _get_entry(entry_id: int) -> sqlite3.Row | None:
 def index(request: Request) -> HTMLResponse:
     start_date = request.query_params.get("start_date") or None
     end_date = request.query_params.get("end_date") or None
-    entries = _get_entries(start_date=start_date, end_date=end_date)
     sleep_state = _get_sleep_state()
+    stats = _get_stats()
     return templates.TemplateResponse(
         "index.html",
         {
             "request": request,
-            "entries": entries,
             "sleep_state": sleep_state,
+            "stats": stats,
             "format_duration": _format_duration,
             "format_datetime": _format_datetime,
             "format_datetime_input": _format_datetime_input,
             "start_date": start_date or "",
             "end_date": end_date or "",
+            "active_page": "home",
+            "app_name": APP_NAME,
+        },
+    )
+
+@app.get("/history", response_class=HTMLResponse)
+def history(request: Request) -> HTMLResponse:
+    start_date = request.query_params.get("start_date") or None
+    end_date = request.query_params.get("end_date") or None
+    entries = _get_entries(start_date=start_date, end_date=end_date)
+    return templates.TemplateResponse(
+        "history.html",
+        {
+            "request": request,
+            "entries": entries,
+            "format_duration": _format_duration,
+            "format_datetime": _format_datetime,
+            "format_datetime_input": _format_datetime_input,
+            "start_date": start_date or "",
+            "end_date": end_date or "",
+            "active_page": "history",
             "app_name": APP_NAME,
         },
     )
@@ -203,6 +270,7 @@ def log_feed(
 ) -> HTMLResponse:
     now_dt = datetime.now()
     created_at_dt = now_dt - timedelta(minutes=minutes_ago or 0)
+            "stats_oob": False,
     created_at = _parse_datetime_input(created_at, created_at_dt)
     with _connect() as conn:
         conn.execute(
@@ -218,11 +286,14 @@ def log_feed(
         start_date=start_date or None,
         end_date=end_date or None,
     )
+    stats = _get_stats()
     return templates.TemplateResponse(
-        "_entries.html",
+        "_feed_response.html",
         {
             "request": request,
             "entries": entries,
+            "stats": stats,
+            "stats_oob": True,
             "format_duration": _format_duration,
             "format_datetime": _format_datetime,
             "format_datetime_input": _format_datetime_input,
@@ -277,6 +348,7 @@ def toggle_sleep(
         end_date=end_date or None,
     )
     sleep_state = _get_sleep_state()
+    stats = _get_stats()
 
     return templates.TemplateResponse(
         "_sleep_toggle_response.html",
@@ -284,6 +356,8 @@ def toggle_sleep(
             "request": request,
             "entries": entries,
             "sleep_state": sleep_state,
+            "stats": stats,
+            "stats_oob": True,
             "format_duration": _format_duration,
             "format_datetime": _format_datetime,
             "format_datetime_input": _format_datetime_input,
@@ -367,11 +441,14 @@ def update_entry(
             conn.commit()
 
     updated = _get_entry(entry_id)
+    stats = _get_stats()
     return templates.TemplateResponse(
-        "_entry_card.html",
+        "_entry_update_response.html",
         {
             "request": request,
             "entry": updated,
+            "stats": stats,
+            "stats_oob": True,
             "format_duration": _format_duration,
             "format_datetime": _format_datetime,
         },
