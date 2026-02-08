@@ -101,6 +101,33 @@ def _get_sleep_state() -> dict[str, Any]:
     return {"active": True, "started_at": row["started_at"]}
 
 
+def _get_daily_chart_data() -> dict[str, list[Any]]:
+    labels = []
+    data_points = []
+
+    # Last 7 days including today
+    today = datetime.now().date()
+    dates = [(today - timedelta(days=i)) for i in range(6, -1, -1)]
+
+    with _connect() as conn:
+        for d in dates:
+            d_str = d.strftime("%Y-%m-%d")
+            row = conn.execute(
+                """
+                SELECT SUM(amount_ml) as total
+                FROM events
+                WHERE type='feed' AND date(created_at) = ?
+                """,
+                (d_str,),
+            ).fetchone()
+            total = row["total"] or 0
+
+            labels.append(d.strftime("%a"))  # Mon, Tue...
+            data_points.append(total)
+
+    return {"labels": labels, "data": data_points}
+
+
 def _get_stats() -> dict[str, Any]:
     now_dt = datetime.now()
     with _connect() as conn:
@@ -256,12 +283,14 @@ def index(request: Request) -> HTMLResponse:
     end_date = request.query_params.get("end_date") or None
     sleep_state = _get_sleep_state()
     stats = _get_stats()
+    chart_data = _get_daily_chart_data()
     return templates.TemplateResponse(
         "index.html",
         {
             "request": request,
             "sleep_state": sleep_state,
             "stats": stats,
+            "chart_data": chart_data,
             "format_duration": _format_duration,
             "format_since": _format_since,
             "format_datetime": _format_datetime,
