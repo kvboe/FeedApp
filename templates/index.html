@@ -184,7 +184,14 @@
       document.body.addEventListener("showToast", function(evt){
         const toast = document.getElementById("toast");
         const msg = document.getElementById("toast-message");
-        msg.innerText = evt.detail.value || "Logged!";
+        const detail = evt.detail;
+        if (detail && detail.value) {
+           msg.innerText = detail.value;
+        } else if (typeof detail === 'string') {
+           msg.innerText = detail;
+        } else {
+           msg.innerText = "Logged!";
+        }
 
         toast.classList.remove("opacity-0", "-translate-y-4");
         setTimeout(() => {
