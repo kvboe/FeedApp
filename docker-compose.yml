@@ -1,0 +1,13 @@
+services:
+  feedapp:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_PATH=/data/feedapp.db
+    volumes:
+      - feedapp_data:/data
+    restart: unless-stopped
+
+volumes:
+  feedapp_data:
