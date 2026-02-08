@@ -28,6 +28,53 @@
             <span>📅</span>
             <span>Filter</span>
           </div>
+          <script>
+            function setFilter(type) {
+              const form = document.getElementById('filters');
+              const input = document.getElementById('event_type');
+              if (type === 'today') {
+                  const today = new Date().toISOString().split('T')[0];
+                  document.getElementById('start_date').value = today;
+                  document.getElementById('end_date').value = today;
+                  // reset type
+                  input.value = '';
+              } else {
+                  // toggle or set type
+                  if (input.value === type) {
+                      input.value = ''; // toggle off
+                  } else {
+                      input.value = type;
+                  }
+                  // clear dates if we just want to see all feeds/sleeps?
+                  // or keep them? Keep them is usually better UX.
+              }
+              htmx.trigger(form, 'submit');
+            }
+          </script>
+          <div class="mt-4 flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+            <button
+              type="button"
+              onclick="setFilter('today')"
+              class="whitespace-nowrap rounded-full bg-slate-800 border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition"
+            >
+              📅 Today
+            </button>
+            <button
+              type="button"
+              onclick="setFilter('feed')"
+              class="whitespace-nowrap rounded-full bg-slate-800 border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition"
+            >
+              🍼 Feed
+            </button>
+            <button
+              type="button"
+              onclick="setFilter('sleep')"
+              class="whitespace-nowrap rounded-full bg-slate-800 border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition"
+            >
+              🌙 Sleep
+            </button>
+          </div>
+
           <form
             id="filters"
             class="mt-3 grid grid-cols-2 gap-3"
@@ -35,6 +82,7 @@
             hx-target="#entries"
             hx-swap="outerHTML"
           >
+            <input type="hidden" name="type" id="event_type" value="{{ event_type }}">
             <div>
               <label class="text-sm text-slate-400" for="start_date">From</label>
               <input

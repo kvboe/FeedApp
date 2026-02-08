@@ -65,9 +65,10 @@ def _now_iso() -> str:
 
 
 def _get_entries(
-    limit: int = 10,
+    limit: int = 20,
     start_date: str | None = None,
     end_date: str | None = None,
+    event_type: str | None = None,
 ) -> list[sqlite3.Row]:
     query = "SELECT * FROM events"
     clauses: list[str] = []
@@ -79,6 +80,9 @@ def _get_entries(
     if end_date:
         clauses.append("date(created_at) <= date(?)")
         params.append(end_date)
+    if event_type and event_type in ("feed", "sleep"):
+        clauses.append("type = ?")
+        params.append(event_type)
 
     if clauses:
         query += " WHERE " + " AND ".join(clauses)
@@ -311,7 +315,10 @@ def index(request: Request) -> HTMLResponse:
 def history(request: Request) -> HTMLResponse:
     start_date = request.query_params.get("start_date") or None
     end_date = request.query_params.get("end_date") or None
-    entries = _get_entries(start_date=start_date, end_date=end_date)
+    event_type = request.query_params.get("type") or None
+    entries = _get_entries(
+        start_date=start_date, end_date=end_date, event_type=event_type
+    )
     return templates.TemplateResponse(
         "history.html",
         {
@@ -322,6 +329,7 @@ def history(request: Request) -> HTMLResponse:
             "format_datetime_input": _format_datetime_input,
             "start_date": start_date or "",
             "end_date": end_date or "",
+            "event_type": event_type or "",
             "active_page": "history",
             "app_name": APP_NAME,
         },
@@ -348,7 +356,10 @@ def stats_partial(request: Request) -> HTMLResponse:
 def entries_partial(request: Request) -> HTMLResponse:
     start_date = request.query_params.get("start_date") or None
     end_date = request.query_params.get("end_date") or None
-    entries = _get_entries(start_date=start_date, end_date=end_date)
+    event_type = request.query_params.get("type") or None
+    entries = _get_entries(
+        start_date=start_date, end_date=end_date, event_type=event_type
+    )
     return templates.TemplateResponse(
         "_entries.html",
         {
@@ -359,6 +370,7 @@ def entries_partial(request: Request) -> HTMLResponse:
             "format_datetime_input": _format_datetime_input,
             "start_date": start_date or "",
             "end_date": end_date or "",
+            "event_type": event_type or "",
         },
     )
 
@@ -587,3 +599,11 @@ def update_entry(
             "format_datetime": _format_datetime,
         },
     )
+
+
+@app.delete("/entries/{entry_id}", response_class=HTMLResponse)
+def delete_entry(entry_id: int) -> HTMLResponse:
+    with _connect() as conn:
+        conn.execute("DELETE FROM events WHERE id = ?", (entry_id,))
+        conn.commit()
+    return HTMLResponse(status_code=200, content="")
