@@ -540,9 +540,9 @@ def toggle_sleep(
         },
     )
     if sleep_state["active"]:
-        response.headers["HX-Trigger"] = '{"showToast": "Sleep started... 💤"}'
+        response.headers["HX-Trigger"] = '{"showToast": "Sleep started..."}'
     else:
-        response.headers["HX-Trigger"] = '{"showToast": "Sleep logged! ☀️"}'
+        response.headers["HX-Trigger"] = '{"showToast": "Sleep logged !"}'
     return response
 
 
