@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
-from pathlib import Path
 import os
 import sqlite3
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Form, Request
@@ -79,7 +79,9 @@ def _get_entries(limit: int = 10) -> list[sqlite3.Row]:
 
 def _get_sleep_state() -> dict[str, Any]:
     with _connect() as conn:
-        row = conn.execute("SELECT started_at FROM sleep_state WHERE id = 1;").fetchone()
+        row = conn.execute(
+            "SELECT started_at FROM sleep_state WHERE id = 1;"
+        ).fetchone()
     if not row:
         return {"active": False, "started_at": None}
     return {"active": True, "started_at": row["started_at"]}
@@ -96,6 +98,44 @@ def _format_duration(seconds: int | None) -> str:
     return f"{minutes}m"
 
 
+def _format_datetime(value: str | None) -> str:
+    if not value:
+        return ""
+    try:
+        dt = datetime.fromisoformat(value)
+    except ValueError:
+        return value
+    return dt.strftime("%d %b %Y, %H:%M")
+
+
+def _format_datetime_input(value: str | None) -> str:
+    if not value:
+        return ""
+    try:
+        dt = datetime.fromisoformat(value)
+    except ValueError:
+        return ""
+    return dt.strftime("%Y-%m-%dT%H:%M")
+
+
+def _parse_datetime_input(value: str | None, fallback: datetime) -> str:
+    if value:
+        try:
+            return datetime.fromisoformat(value).isoformat(timespec="seconds")
+        except ValueError:
+            pass
+    return fallback.isoformat(timespec="seconds")
+
+
+def _get_entry(entry_id: int) -> sqlite3.Row | None:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM events WHERE id = ?;",
+            (entry_id,),
+        ).fetchone()
+    return row
+
+
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request) -> HTMLResponse:
     entries = _get_entries()
@@ -107,6 +147,8 @@ def index(request: Request) -> HTMLResponse:
             "entries": entries,
             "sleep_state": sleep_state,
             "format_duration": _format_duration,
+            "format_datetime": _format_datetime,
+            "format_datetime_input": _format_datetime_input,
             "app_name": APP_NAME,
         },
     )
@@ -121,6 +163,8 @@ def entries_partial(request: Request) -> HTMLResponse:
             "request": request,
             "entries": entries,
             "format_duration": _format_duration,
+            "format_datetime": _format_datetime,
+            "format_datetime_input": _format_datetime_input,
         },
     )
 
@@ -129,16 +173,20 @@ def entries_partial(request: Request) -> HTMLResponse:
 def log_feed(
     request: Request,
     amount_ml: int = Form(120),
-    notes: str = Form("")
+    notes: str = Form(""),
+    created_at: str = Form(""),
+    minutes_ago: int = Form(0),
 ) -> HTMLResponse:
-    now = _now_iso()
+    now_dt = datetime.now()
+    created_at_dt = now_dt - timedelta(minutes=minutes_ago or 0)
+    created_at = _parse_datetime_input(created_at, created_at_dt)
     with _connect() as conn:
         conn.execute(
             """
             INSERT INTO events (type, amount_ml, notes, created_at)
             VALUES (?, ?, ?, ?);
             """,
-            ("feed", amount_ml, notes.strip() or None, now),
+            ("feed", amount_ml, notes.strip() or None, created_at),
         )
         conn.commit()
 
@@ -149,18 +197,19 @@ def log_feed(
             "request": request,
             "entries": entries,
             "format_duration": _format_duration,
+            "format_datetime": _format_datetime,
+            "format_datetime_input": _format_datetime_input,
         },
     )
 
 
 @app.post("/sleep/toggle", response_class=HTMLResponse)
-def toggle_sleep(
-    request: Request,
-    notes: str = Form("")
-) -> HTMLResponse:
+def toggle_sleep(request: Request, notes: str = Form("")) -> HTMLResponse:
     now = _now_iso()
     with _connect() as conn:
-        row = conn.execute("SELECT started_at FROM sleep_state WHERE id = 1;").fetchone()
+        row = conn.execute(
+            "SELECT started_at FROM sleep_state WHERE id = 1;"
+        ).fetchone()
         if row:
             started_at = row["started_at"]
             started_dt = datetime.fromisoformat(started_at)
@@ -199,6 +248,92 @@ def toggle_sleep(
             "entries": entries,
             "sleep_state": sleep_state,
             "format_duration": _format_duration,
+            "format_datetime": _format_datetime,
+            "format_datetime_input": _format_datetime_input,
             "oob": True,
+        },
+    )
+
+
+@app.get("/entries/{entry_id}/edit", response_class=HTMLResponse)
+def edit_entry(entry_id: int, request: Request) -> HTMLResponse:
+    entry = _get_entry(entry_id)
+    if not entry:
+        return HTMLResponse(status_code=404, content="Not found")
+    return templates.TemplateResponse(
+        "_entry_edit.html",
+        {
+            "request": request,
+            "entry": entry,
+            "format_duration": _format_duration,
+            "format_datetime": _format_datetime,
+            "format_datetime_input": _format_datetime_input,
+        },
+    )
+
+
+@app.post("/entries/{entry_id}", response_class=HTMLResponse)
+def update_entry(
+    entry_id: int,
+    request: Request,
+    amount_ml: int | None = Form(None),
+    created_at: str = Form(""),
+    started_at: str = Form(""),
+    ended_at: str = Form(""),
+    notes: str = Form(""),
+) -> HTMLResponse:
+    entry = _get_entry(entry_id)
+    if not entry:
+        return HTMLResponse(status_code=404, content="Not found")
+    now_dt = datetime.now()
+
+    if entry["type"] == "feed":
+        amount = amount_ml if amount_ml is not None else entry["amount_ml"]
+        created_at_value = _parse_datetime_input(created_at, now_dt)
+        with _connect() as conn:
+            conn.execute(
+                """
+                UPDATE events
+                SET amount_ml = ?, notes = ?, created_at = ?
+                WHERE id = ?;
+                """,
+                (amount, notes.strip() or None, created_at_value, entry_id),
+            )
+            conn.commit()
+    else:
+        started_at = _parse_datetime_input(started_at, now_dt)
+        ended_at = _parse_datetime_input(ended_at, now_dt)
+        started_dt = datetime.fromisoformat(started_at)
+        ended_dt = datetime.fromisoformat(ended_at)
+        if ended_dt < started_dt:
+            ended_dt = started_dt
+            ended_at = ended_dt.isoformat(timespec="seconds")
+        duration_sec = int((ended_dt - started_dt).total_seconds())
+        with _connect() as conn:
+            conn.execute(
+                """
+                UPDATE events
+                SET started_at = ?, ended_at = ?, duration_sec = ?, notes = ?, created_at = ?
+                WHERE id = ?;
+                """,
+                (
+                    started_at,
+                    ended_at,
+                    duration_sec,
+                    notes.strip() or None,
+                    ended_at,
+                    entry_id,
+                ),
+            )
+            conn.commit()
+
+    updated = _get_entry(entry_id)
+    return templates.TemplateResponse(
+        "_entry_card.html",
+        {
+            "request": request,
+            "entry": updated,
+            "format_duration": _format_duration,
+            "format_datetime": _format_datetime,
         },
     )

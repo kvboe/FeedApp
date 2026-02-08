@@ -2,7 +2,7 @@
   <div>
     <h2 class="text-lg font-semibold">Sleep Tracking</h2>
     {% if sleep_state.active %}
-      <p class="text-sm text-emerald-400 mt-1">Sleeping since {{ sleep_state.started_at }}</p>
+      <p class="text-sm text-emerald-400 mt-1">Sleeping since {{ format_datetime(sleep_state.started_at) }}</p>
     {% else %}
       <p class="text-sm text-slate-400 mt-1">Not sleeping</p>
     {% endif %}

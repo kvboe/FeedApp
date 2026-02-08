@@ -1,0 +1,85 @@
+<div id="entry-{{ entry.id }}" class="rounded-xl border border-slate-700 bg-slate-900 p-3">
+  <form
+    class="space-y-3"
+    hx-post="/entries/{{ entry.id }}"
+    hx-target="#entry-{{ entry.id }}"
+    hx-swap="outerHTML"
+  >
+    <div class="flex items-center justify-between">
+      <span class="text-sm uppercase tracking-wide text-slate-400">Edit {{ entry.type }}</span>
+    </div>
+
+    {% if entry.type == 'feed' %}
+      <div>
+        <label class="text-sm text-slate-400" for="amount_ml_{{ entry.id }}">Amount (ml)</label>
+        <input
+          id="amount_ml_{{ entry.id }}"
+          name="amount_ml"
+          type="number"
+          min="1"
+          value="{{ entry.amount_ml }}"
+          class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2"
+        />
+      </div>
+      <div>
+        <label class="text-sm text-slate-400" for="created_at_{{ entry.id }}">Time</label>
+        <input
+          id="created_at_{{ entry.id }}"
+          name="created_at"
+          type="datetime-local"
+          value="{{ format_datetime_input(entry.created_at) }}"
+          class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2"
+        />
+      </div>
+    {% else %}
+      <div>
+        <label class="text-sm text-slate-400" for="started_at_{{ entry.id }}">Start</label>
+        <input
+          id="started_at_{{ entry.id }}"
+          name="started_at"
+          type="datetime-local"
+          value="{{ format_datetime_input(entry.started_at) }}"
+          class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2"
+        />
+      </div>
+      <div>
+        <label class="text-sm text-slate-400" for="ended_at_{{ entry.id }}">End</label>
+        <input
+          id="ended_at_{{ entry.id }}"
+          name="ended_at"
+          type="datetime-local"
+          value="{{ format_datetime_input(entry.ended_at) }}"
+          class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2"
+        />
+      </div>
+    {% endif %}
+
+    <div>
+      <label class="text-sm text-slate-400" for="notes_{{ entry.id }}">Notes</label>
+      <textarea
+        id="notes_{{ entry.id }}"
+        name="notes"
+        rows="2"
+        class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2"
+      >{{ entry.notes or '' }}</textarea>
+    </div>
+
+    <div class="flex justify-end gap-3">
+      <button
+        type="button"
+        class="text-xs text-slate-300 hover:text-white"
+        hx-get="/entries"
+        hx-target="#entries"
+        hx-swap="outerHTML"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        class="rounded-lg bg-cyan-500 text-slate-900 text-xs font-semibold px-3 py-2 hover:bg-cyan-400"
+      >
+        Save
+      </button>
+    </div>
+  </form>
+</div>
