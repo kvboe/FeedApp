@@ -17,14 +17,17 @@
   </head>
   <body class="bg-slate-950 text-slate-100 min-h-screen">
     <main class="mx-auto max-w-xl px-4 py-6 sm:py-10">
-      <header class="mb-6">
-        <h1 class="text-3xl font-semibold tracking-tight">{{ app_name }}</h1>
-        <p class="text-slate-400 mt-2">Fast logging for feeding and sleep.</p>
+      <header class="mb-4 flex items-center justify-between">
+        <h1 class="text-2xl font-semibold tracking-tight">{{ app_name }}</h1>
+        <span class="text-slate-400 text-sm">🍼🌙</span>
       </header>
 
       <section class="space-y-4">
         <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 shadow-sm">
-          <h2 class="text-lg font-semibold">Bottle Feeding</h2>
+          <div class="flex items-center gap-2 text-lg font-semibold">
+            <span>🍼</span>
+            <span>Feed</span>
+          </div>
           <form
             class="mt-4 flex flex-col gap-3"
             hx-post="/feed"
@@ -32,7 +35,7 @@
             hx-swap="outerHTML"
             hx-include="#notes,#filters"
           >
-            <label class="text-sm text-slate-400" for="amount_ml">Amount (ml)</label>
+            <label class="text-sm text-slate-400" for="amount_ml">ml</label>
             <input
               id="amount_ml"
               name="amount_ml"
@@ -43,7 +46,7 @@
             />
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label class="text-sm text-slate-400" for="minutes_ago">Minutes ago</label>
+                <label class="text-sm text-slate-400" for="minutes_ago">⏱️ min ago</label>
                 <input
                   id="minutes_ago"
                   name="minutes_ago"
@@ -54,7 +57,7 @@
                 />
               </div>
               <div>
-                <label class="text-sm text-slate-400" for="created_at">Or set time</label>
+                <label class="text-sm text-slate-400" for="created_at">🕒 time</label>
                 <input
                   id="created_at"
                   name="created_at"
@@ -67,7 +70,7 @@
               type="submit"
               class="rounded-xl bg-cyan-500 text-slate-900 font-semibold py-3 text-lg hover:bg-cyan-400 transition"
             >
-              Log Now
+              Log
             </button>
           </form>
         </div>
@@ -77,8 +80,10 @@
         </div>
 
         <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 shadow-sm">
-          <h2 class="text-lg font-semibold">Notes</h2>
-          <p class="text-sm text-slate-400 mt-1">Diaper changes, medicine, or anything else.</p>
+          <div class="flex items-center gap-2 text-lg font-semibold">
+            <span>📝</span>
+            <span>Notes</span>
+          </div>
           <textarea
             id="notes"
             name="notes"
@@ -89,7 +94,10 @@
         </div>
 
         <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 shadow-sm">
-          <h2 class="text-lg font-semibold">Filter by Date</h2>
+          <div class="flex items-center gap-2 text-lg font-semibold">
+            <span>📅</span>
+            <span>Filter</span>
+          </div>
           <form
             id="filters"
             class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3"
@@ -122,7 +130,7 @@
                 type="submit"
                 class="rounded-lg bg-slate-800 text-slate-100 text-xs font-semibold px-3 py-2 hover:bg-slate-700"
               >
-                Apply Filter
+                Apply
               </button>
             </div>
           </form>

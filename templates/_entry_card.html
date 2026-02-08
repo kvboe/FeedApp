@@ -2,7 +2,7 @@
 <div id="entry-{{ entry.id }}" class="rounded-xl border-l-4 {{ type_class }} border border-slate-800 p-3">
   <div class="flex items-center justify-between">
     <span class="text-sm uppercase tracking-wide text-slate-400">
-      {{ entry.type }}
+      {% if entry.type == 'feed' %}🍼{% elif entry.type == 'sleep' %}🌙{% else %}📌{% endif %}
     </span>
     <span class="text-xs text-slate-500">{{ format_datetime(entry.created_at) }}</span>
   </div>
@@ -22,8 +22,10 @@
       hx-get="/entries/{{ entry.id }}/edit"
       hx-target="#entry-{{ entry.id }}"
       hx-swap="outerHTML"
+      aria-label="Edit"
+      title="Edit"
     >
-      Edit
+      ✏️
     </button>
   </div>
 </div>

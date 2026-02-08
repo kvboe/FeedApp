@@ -1,5 +1,8 @@
 <div id="entries" class="rounded-2xl bg-slate-900 border border-slate-800 p-4 shadow-sm" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
-  <h2 class="text-lg font-semibold">Recent Activity</h2>
+  <div class="flex items-center gap-2 text-lg font-semibold">
+    <span>🗂️</span>
+    <span>Recent</span>
+  </div>
   <div class="mt-4 space-y-3">
     {% if entries %}
       {% for entry in entries %}

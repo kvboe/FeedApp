@@ -6,7 +6,7 @@
     hx-swap="outerHTML"
   >
     <div class="flex items-center justify-between">
-      <span class="text-sm uppercase tracking-wide text-slate-400">Edit {{ entry.type }}</span>
+      <span class="text-sm uppercase tracking-wide text-slate-400">✏️ Edit</span>
     </div>
 
     {% if entry.type == 'feed' %}
@@ -72,14 +72,16 @@
         hx-target="#entries"
         hx-swap="outerHTML"
         hx-include="#filters"
+        aria-label="Cancel"
+        title="Cancel"
       >
-        Cancel
+        ✕
       </button>
       <button
         type="submit"
         class="rounded-lg bg-cyan-500 text-slate-900 text-xs font-semibold px-3 py-2 hover:bg-cyan-400"
       >
-        Save
+        ✓
       </button>
     </div>
   </form>
