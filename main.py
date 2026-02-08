@@ -190,6 +190,26 @@ def _format_datetime_input(value: str | None) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M")
 
 
+def _format_date_input(value: str | None) -> str:
+    if not value:
+        return ""
+    try:
+        dt = datetime.fromisoformat(value)
+    except ValueError:
+        return ""
+    return dt.strftime("%Y-%m-%d")
+
+
+def _format_time_input(value: str | None) -> str:
+    if not value:
+        return ""
+    try:
+        dt = datetime.fromisoformat(value)
+    except ValueError:
+        return ""
+    return dt.strftime("%H:%M")
+
+
 def _parse_datetime_input(value: str | None, fallback: datetime) -> str:
     if value:
         try:
@@ -197,6 +217,28 @@ def _parse_datetime_input(value: str | None, fallback: datetime) -> str:
         except ValueError:
             pass
     return fallback.isoformat(timespec="seconds")
+
+
+def _parse_date_time_input(
+    date_value: str | None,
+    time_value: str | None,
+    fallback: datetime,
+) -> str:
+    date_value = (date_value or "").strip()
+    time_value = (time_value or "").strip()
+    if not date_value and not time_value:
+        return fallback.isoformat(timespec="seconds")
+
+    if not date_value:
+        date_value = fallback.strftime("%Y-%m-%d")
+    if not time_value:
+        time_value = fallback.strftime("%H:%M")
+
+    try:
+        dt = datetime.fromisoformat(f"{date_value}T{time_value}")
+        return dt.isoformat(timespec="seconds")
+    except ValueError:
+        return fallback.isoformat(timespec="seconds")
 
 
 def _get_entry(entry_id: int) -> sqlite3.Row | None:
@@ -224,6 +266,10 @@ def index(request: Request) -> HTMLResponse:
             "format_since": _format_since,
             "format_datetime": _format_datetime,
             "format_datetime_input": _format_datetime_input,
+            "format_date_input": _format_date_input,
+            "format_time_input": _format_time_input,
+            "format_date_input": _format_date_input,
+            "format_time_input": _format_time_input,
             "start_date": start_date or "",
             "end_date": end_date or "",
             "active_page": "home",
@@ -294,13 +340,18 @@ def log_feed(
     amount_ml: int = Form(120),
     notes: str = Form(""),
     created_at: str = Form(""),
+    created_date: str = Form(""),
+    created_time: str = Form(""),
     minutes_ago: int = Form(0),
     start_date: str = Form(""),
     end_date: str = Form(""),
 ) -> HTMLResponse:
     now_dt = datetime.now()
     created_at_dt = now_dt - timedelta(minutes=minutes_ago or 0)
-    created_at = _parse_datetime_input(created_at, created_at_dt)
+    if created_date or created_time:
+        created_at = _parse_date_time_input(created_date, created_time, created_at_dt)
+    else:
+        created_at = _parse_datetime_input(created_at, created_at_dt)
     with _connect() as conn:
         conn.execute(
             """
@@ -392,6 +443,8 @@ def toggle_sleep(
             "format_since": _format_since,
             "format_datetime": _format_datetime,
             "format_datetime_input": _format_datetime_input,
+            "format_date_input": _format_date_input,
+            "format_time_input": _format_time_input,
             "start_date": start_date or "",
             "end_date": end_date or "",
             "oob": True,
@@ -412,6 +465,8 @@ def edit_entry(entry_id: int, request: Request) -> HTMLResponse:
             "format_duration": _format_duration,
             "format_datetime": _format_datetime,
             "format_datetime_input": _format_datetime_input,
+            "format_date_input": _format_date_input,
+            "format_time_input": _format_time_input,
         },
     )
 
@@ -422,8 +477,14 @@ def update_entry(
     request: Request,
     amount_ml: int | None = Form(None),
     created_at: str = Form(""),
+    created_date: str = Form(""),
+    created_time: str = Form(""),
     started_at: str = Form(""),
+    started_date: str = Form(""),
+    started_time: str = Form(""),
     ended_at: str = Form(""),
+    ended_date: str = Form(""),
+    ended_time: str = Form(""),
     notes: str = Form(""),
 ) -> HTMLResponse:
     entry = _get_entry(entry_id)
@@ -433,7 +494,12 @@ def update_entry(
 
     if entry["type"] == "feed":
         amount = amount_ml if amount_ml is not None else entry["amount_ml"]
-        created_at_value = _parse_datetime_input(created_at, now_dt)
+        if created_date or created_time:
+            created_at_value = _parse_date_time_input(
+                created_date, created_time, now_dt
+            )
+        else:
+            created_at_value = _parse_datetime_input(created_at, now_dt)
         with _connect() as conn:
             conn.execute(
                 """
@@ -445,8 +511,15 @@ def update_entry(
             )
             conn.commit()
     else:
-        started_at = _parse_datetime_input(started_at, now_dt)
-        ended_at = _parse_datetime_input(ended_at, now_dt)
+        if started_date or started_time:
+            started_at = _parse_date_time_input(started_date, started_time, now_dt)
+        else:
+            started_at = _parse_datetime_input(started_at, now_dt)
+
+        if ended_date or ended_time:
+            ended_at = _parse_date_time_input(ended_date, ended_time, now_dt)
+        else:
+            ended_at = _parse_datetime_input(ended_at, now_dt)
         started_dt = datetime.fromisoformat(started_at)
         ended_dt = datetime.fromisoformat(ended_at)
         if ended_dt < started_dt:
