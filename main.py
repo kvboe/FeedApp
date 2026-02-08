@@ -270,7 +270,6 @@ def log_feed(
 ) -> HTMLResponse:
     now_dt = datetime.now()
     created_at_dt = now_dt - timedelta(minutes=minutes_ago or 0)
-            "stats_oob": False,
     created_at = _parse_datetime_input(created_at, created_at_dt)
     with _connect() as conn:
         conn.execute(
@@ -293,7 +292,7 @@ def log_feed(
             "request": request,
             "entries": entries,
             "stats": stats,
-            "stats_oob": True,
+            "stats_oob": False,
             "format_duration": _format_duration,
             "format_datetime": _format_datetime,
             "format_datetime_input": _format_datetime_input,
