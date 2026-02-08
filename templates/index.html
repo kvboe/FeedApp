@@ -32,42 +32,6 @@
         {% include "_stats.html" %}
 
         <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 shadow-sm">
-          <div class="flex items-center gap-2 text-lg font-semibold mb-2">
-            <span>📈</span>
-            <span>Week</span>
-          </div>
-          <div class="h-40">
-            <canvas id="feedChart"></canvas>
-          </div>
-          <script>
-            document.addEventListener("DOMContentLoaded", function () {
-              const ctx = document.getElementById('feedChart').getContext('2d');
-              new Chart(ctx, {
-                type: 'bar',
-                data: {
-                  labels: [{% for l in chart_data.labels %}"{{ l }}",{% endfor %}],
-                  datasets: [{
-                    label: 'Volume (ml)',
-                    data: [{% for d in chart_data.data %}{{ d }},{% endfor %}],
-                    backgroundColor: '#06b6d4',
-                    borderRadius: 4,
-                  }]
-                },
-                options: {
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: { legend: { display: false } },
-                  scales: {
-                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
-                    y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, beginAtZero: true }
-                  }
-                }
-              });
-            });
-          </script>
-        </div>
-
-        <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 shadow-sm">
           <div class="flex items-center gap-2 text-lg font-semibold">
             <span>🍼</span>
             <span>Feed</span>
@@ -136,6 +100,42 @@
 
         <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 shadow-sm" id="sleep-status">
           {% include "_sleep_status.html" %}
+        </div>
+
+                <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 shadow-sm">
+          <div class="flex items-center gap-2 text-lg font-semibold mb-2">
+            <span>📈</span>
+            <span>Week</span>
+          </div>
+          <div class="h-40">
+            <canvas id="feedChart"></canvas>
+          </div>
+          <script>
+            document.addEventListener("DOMContentLoaded", function () {
+              const ctx = document.getElementById('feedChart').getContext('2d');
+              new Chart(ctx, {
+                type: 'bar',
+                data: {
+                  labels: [{% for l in chart_data.labels %}"{{ l }}",{% endfor %}],
+                  datasets: [{
+                    label: 'Volume (ml)',
+                    data: [{% for d in chart_data.data %}{{ d }},{% endfor %}],
+                    backgroundColor: '#06b6d4',
+                    borderRadius: 4,
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+                    y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, beginAtZero: true }
+                  }
+                }
+              });
+            });
+          </script>
         </div>
 
         <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 shadow-sm">
