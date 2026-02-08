@@ -82,7 +82,7 @@
                   name="amount_ml"
                   type="number"
                   min="1"
-                  value="120"
+                  value="{{ stats.last_feed.amount_ml if stats.last_feed else 120 }}"
                   class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-cyan-500 appearance-none"
                 />
               </div>
@@ -94,24 +94,6 @@
                   type="number"
                   min="0"
                   value="0"
-                  class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-cyan-500 appearance-none"
-                />
-              </div>
-              <div>
-                <label class="text-sm text-slate-400" for="created_date">📅 date</label>
-                <input
-                  id="created_date"
-                  name="created_date"
-                  type="date"
-                  class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-cyan-500 appearance-none"
-                />
-              </div>
-              <div>
-                <label class="text-sm text-slate-400" for="created_time">🕒 time</label>
-                <input
-                  id="created_time"
-                  name="created_time"
-                  type="time"
                   class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-cyan-500 appearance-none"
                 />
               </div>
