@@ -44,8 +44,8 @@
             id="created_date_{{ entry.id }}"
             name="created_date"
             type="date"
-            data-iso="{{ entry.created_at }}"
-            class="local-date-input mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base appearance-none"
+            value="{{ format_date_input(entry.created_at) }}"
+            class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base appearance-none"
           />
         </div>
         <div>
@@ -54,8 +54,8 @@
             id="created_time_{{ entry.id }}"
             name="created_time"
             type="time"
-            data-iso="{{ entry.created_at }}"
-            class="local-time-input mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base appearance-none"
+            value="{{ format_time_input(entry.created_at) }}"
+            class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base appearance-none"
           />
         </div>
       </div>
@@ -67,8 +67,8 @@
             id="started_date_{{ entry.id }}"
             name="started_date"
             type="date"
-            data-iso="{{ entry.started_at }}"
-            class="local-date-input mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base appearance-none"
+            value="{{ format_date_input(entry.started_at) }}"
+            class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base appearance-none"
           />
         </div>
         <div>
@@ -77,8 +77,8 @@
             id="started_time_{{ entry.id }}"
             name="started_time"
             type="time"
-            data-iso="{{ entry.started_at }}"
-            class="local-time-input mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base appearance-none"
+            value="{{ format_time_input(entry.started_at) }}"
+            class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base appearance-none"
           />
         </div>
       </div>
@@ -89,8 +89,8 @@
             id="ended_date_{{ entry.id }}"
             name="ended_date"
             type="date"
-            data-iso="{{ entry.ended_at }}"
-            class="local-date-input mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base appearance-none"
+            value="{{ format_date_input(entry.ended_at) }}"
+            class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base appearance-none"
           />
         </div>
         <div>
@@ -99,8 +99,8 @@
             id="ended_time_{{ entry.id }}"
             name="ended_time"
             type="time"
-            data-iso="{{ entry.ended_at }}"
-            class="local-time-input mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base appearance-none"
+            value="{{ format_time_input(entry.ended_at) }}"
+            class="mt-1 w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-base appearance-none"
           />
         </div>
        </div>

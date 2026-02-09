@@ -13,7 +13,7 @@
     </div>
     <div class="mt-2 text-sm text-slate-200">
       {% if stats.last_feed %}
-        {{ stats.last_feed["amount_ml"] }} ml · <span class="local-time" data-iso="{{ format_datetime(stats.last_feed["created_at"]) }}"></span> · {{ format_since(stats.last_feed["created_at"]) }} ago
+        {{ stats.last_feed["amount_ml"] }} ml · {{ format_datetime(stats.last_feed["created_at"]) }} · {{ format_since(stats.last_feed["created_at"]) }} ago
       {% else %}
         —
       {% endif %}
