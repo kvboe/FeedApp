@@ -171,7 +171,7 @@ def _get_stats() -> dict[str, Any]:
     with _connect() as conn:
         last_feed = conn.execute(
             """
-            SELECT amount_ml, created_at
+            SELECT amount_ml, subtype, created_at
             FROM events
             WHERE type = 'feed'
             ORDER BY datetime(created_at) DESC
