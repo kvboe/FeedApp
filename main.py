@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -75,7 +75,7 @@ def on_startup() -> None:
 
 
 def _now_iso() -> str:
-    return datetime.now().isoformat(timespec="seconds")
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 def _get_setting(key: str) -> str | None:
@@ -144,7 +144,7 @@ def _get_daily_chart_data() -> dict[str, list[Any]]:
     data_points = []
 
     # Last 7 days including today
-    today = datetime.now().date()
+    today = datetime.now(timezone.utc).date()
     dates = [(today - timedelta(days=i)) for i in range(6, -1, -1)]
 
     with _connect() as conn:
@@ -167,7 +167,7 @@ def _get_daily_chart_data() -> dict[str, list[Any]]:
 
 
 def _get_stats() -> dict[str, Any]:
-    now_dt = datetime.now()
+    now_dt = datetime.now(timezone.utc)
     with _connect() as conn:
         last_feed = conn.execute(
             """
@@ -228,9 +228,11 @@ def _format_since(value: str | None) -> str:
         return ""
     try:
         dt = datetime.fromisoformat(value)
+        if dt.tzinfo is None:
+             dt = dt.replace(tzinfo=timezone.utc)
     except ValueError:
         return ""
-    delta = datetime.now() - dt
+    delta = datetime.now(timezone.utc) - dt
     seconds = max(0, int(delta.total_seconds()))
     return _format_duration(seconds)
 
@@ -238,11 +240,8 @@ def _format_since(value: str | None) -> str:
 def _format_datetime(value: str | None) -> str:
     if not value:
         return ""
-    try:
-        dt = datetime.fromisoformat(value)
-    except ValueError:
-        return value
-    return dt.strftime("%d %b %Y, %H:%M")
+    # Return ISO so client JS can format it locally
+    return value
 
 
 def _format_datetime_input(value: str | None) -> str:
@@ -275,10 +274,20 @@ def _format_time_input(value: str | None) -> str:
     return dt.strftime("%H:%M")
 
 
-def _parse_datetime_input(value: str | None, fallback: datetime) -> str:
+def _parse_datetime_input(
+    value: str | None,
+    fallback: datetime,
+    offset_minutes: int = 0
+) -> str:
+    # offset_minutes is timezone difference in minutes (e.g. UTC+1 = -60)
+    # We add it to convert Local -> UTC.
     if value:
         try:
-            return datetime.fromisoformat(value).isoformat(timespec="seconds")
+            dt = datetime.fromisoformat(value)
+            # If naive, assume it's local time from client
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc) + timedelta(minutes=offset_minutes)
+            return dt.isoformat(timespec="seconds")
         except ValueError:
             pass
     return fallback.isoformat(timespec="seconds")
@@ -288,6 +297,7 @@ def _parse_date_time_input(
     date_value: str | None,
     time_value: str | None,
     fallback: datetime,
+    offset_minutes: int = 0
 ) -> str:
     date_value = (date_value or "").strip()
     time_value = (time_value or "").strip()
@@ -301,6 +311,8 @@ def _parse_date_time_input(
 
     try:
         dt = datetime.fromisoformat(f"{date_value}T{time_value}")
+        # Convert Local -> UTC using offset
+        dt = dt.replace(tzinfo=timezone.utc) + timedelta(minutes=offset_minutes)
         return dt.isoformat(timespec="seconds")
     except ValueError:
         return fallback.isoformat(timespec="seconds")
@@ -328,7 +340,7 @@ def index(request: Request) -> HTMLResponse:
     if birthdate_str:
         try:
             birth_date = datetime.strptime(birthdate_str, "%Y-%m-%d").date()
-            age_days = (datetime.now().date() - birth_date).days
+            age_days = (datetime.now(timezone.utc).date() - birth_date).days
         except ValueError:
             pass
 
@@ -430,15 +442,16 @@ def log_feed(
     created_date: str = Form(""),
     created_time: str = Form(""),
     minutes_ago: int = Form(0),
+    timezone_offset: int = Form(0),
     start_date: str = Form(""),
     end_date: str = Form(""),
 ) -> HTMLResponse:
-    now_dt = datetime.now()
+    now_dt = datetime.now(timezone.utc)
     created_at_dt = now_dt - timedelta(minutes=minutes_ago or 0)
     if created_date or created_time:
-        created_at = _parse_date_time_input(created_date, created_time, created_at_dt)
+        created_at = _parse_date_time_input(created_date, created_time, created_at_dt, timezone_offset)
     else:
-        created_at = _parse_datetime_input(created_at, created_at_dt)
+        created_at = _parse_datetime_input(created_at, created_at_dt, timezone_offset)
     with _connect() as conn:
         conn.execute(
             """
@@ -581,11 +594,12 @@ def update_entry(
     ended_date: str = Form(""),
     ended_time: str = Form(""),
     notes: str = Form(""),
+    timezone_offset: int = Form(0),
 ) -> HTMLResponse:
     entry = _get_entry(entry_id)
     if not entry:
         return HTMLResponse(status_code=404, content="Not found")
-    now_dt = datetime.now()
+    now_dt = datetime.now(timezone.utc)
 
     if entry["type"] == "feed":
         amount = amount_ml if amount_ml is not None else entry["amount_ml"]
@@ -596,10 +610,10 @@ def update_entry(
         )
         if created_date or created_time:
             created_at_value = _parse_date_time_input(
-                created_date, created_time, now_dt
+                created_date, created_time, now_dt, timezone_offset
             )
         else:
-            created_at_value = _parse_datetime_input(created_at, now_dt)
+            created_at_value = _parse_datetime_input(created_at, now_dt, timezone_offset)
         with _connect() as conn:
             conn.execute(
                 """
@@ -618,14 +632,14 @@ def update_entry(
             conn.commit()
     else:
         if started_date or started_time:
-            started_at = _parse_date_time_input(started_date, started_time, now_dt)
+            started_at = _parse_date_time_input(started_date, started_time, now_dt, timezone_offset)
         else:
-            started_at = _parse_datetime_input(started_at, now_dt)
+            started_at = _parse_datetime_input(started_at, now_dt, timezone_offset)
 
         if ended_date or ended_time:
-            ended_at = _parse_date_time_input(ended_date, ended_time, now_dt)
+            ended_at = _parse_date_time_input(ended_date, ended_time, now_dt, timezone_offset)
         else:
-            ended_at = _parse_datetime_input(ended_at, now_dt)
+            ended_at = _parse_datetime_input(ended_at, now_dt, timezone_offset)
         started_dt = datetime.fromisoformat(started_at)
         ended_dt = datetime.fromisoformat(ended_at)
         if ended_dt < started_dt:
@@ -705,9 +719,10 @@ def log_weight(
     weight_g: int = Form(...),
     notes: str = Form(""),
     created_at: str = Form(""),
+    timezone_offset: int = Form(0),
 ) -> HTMLResponse:
-    now_dt = datetime.now()
-    created_at = _parse_datetime_input(created_at, now_dt)
+    now_dt = datetime.now(timezone.utc)
+    created_at = _parse_datetime_input(created_at, now_dt, timezone_offset)
 
     with _connect() as conn:
         conn.execute(
