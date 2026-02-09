@@ -229,7 +229,7 @@ def _format_since(value: str | None) -> str:
     try:
         dt = datetime.fromisoformat(value)
         if dt.tzinfo is None:
-             dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=timezone.utc)
     except ValueError:
         return ""
     delta = datetime.now(timezone.utc) - dt
@@ -243,7 +243,7 @@ def _format_datetime(value: str | None, offset_minutes: int = 0) -> str:
     try:
         dt = datetime.fromisoformat(value)
         if dt.tzinfo is None:
-             dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=timezone.utc)
         # offset is (UTC - Local), so Local = UTC - offset
         local_dt = dt - timedelta(minutes=offset_minutes)
         return local_dt.strftime("%b %d, %H:%M")
@@ -257,7 +257,7 @@ def _format_datetime_input(value: str | None, offset_minutes: int = 0) -> str:
     try:
         dt = datetime.fromisoformat(value)
         if dt.tzinfo is None:
-             dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=timezone.utc)
         local_dt = dt - timedelta(minutes=offset_minutes)
     except ValueError:
         return ""
@@ -270,7 +270,7 @@ def _format_date_input(value: str | None, offset_minutes: int = 0) -> str:
     try:
         dt = datetime.fromisoformat(value)
         if dt.tzinfo is None:
-             dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=timezone.utc)
         local_dt = dt - timedelta(minutes=offset_minutes)
     except ValueError:
         return ""
@@ -283,7 +283,7 @@ def _format_time_input(value: str | None, offset_minutes: int = 0) -> str:
     try:
         dt = datetime.fromisoformat(value)
         if dt.tzinfo is None:
-             dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=timezone.utc)
         local_dt = dt - timedelta(minutes=offset_minutes)
     except ValueError:
         return ""
@@ -291,9 +291,7 @@ def _format_time_input(value: str | None, offset_minutes: int = 0) -> str:
 
 
 def _parse_datetime_input(
-    value: str | None,
-    fallback: datetime,
-    offset_minutes: int = 0
+    value: str | None, fallback: datetime, offset_minutes: int = 0
 ) -> str:
     # offset_minutes is timezone difference in minutes (e.g. UTC+1 = -60)
     # We add it to convert Local -> UTC.
@@ -313,7 +311,7 @@ def _parse_date_time_input(
     date_value: str | None,
     time_value: str | None,
     fallback: datetime,
-    offset_minutes: int = 0
+    offset_minutes: int = 0,
 ) -> str:
     date_value = (date_value or "").strip()
     time_value = (time_value or "").strip()
@@ -341,6 +339,7 @@ def _get_ui_helpers(request: Request) -> dict[str, Any]:
         offset = 0
 
     return {
+        "timezone_offset": offset,
         "format_duration": _format_duration,
         "format_since": _format_since,
         "format_datetime": lambda v: _format_datetime(v, offset),
@@ -377,17 +376,19 @@ def index(request: Request) -> HTMLResponse:
             pass
 
     ctx = _get_ui_helpers(request)
-    ctx.update({
-        "request": request,
-        "sleep_state": sleep_state,
-        "stats": stats,
-        "chart_data": chart_data,
-        "age_days": age_days,
-        "start_date": start_date or "",
-        "end_date": end_date or "",
-        "active_page": "home",
-        "app_name": APP_NAME,
-    })
+    ctx.update(
+        {
+            "request": request,
+            "sleep_state": sleep_state,
+            "stats": stats,
+            "chart_data": chart_data,
+            "age_days": age_days,
+            "start_date": start_date or "",
+            "end_date": end_date or "",
+            "active_page": "home",
+            "app_name": APP_NAME,
+        }
+    )
     return templates.TemplateResponse("index.html", ctx)
 
 
@@ -400,15 +401,17 @@ def history(request: Request) -> HTMLResponse:
         start_date=start_date, end_date=end_date, event_type=event_type
     )
     ctx = _get_ui_helpers(request)
-    ctx.update({
-        "request": request,
-        "entries": entries,
-        "start_date": start_date or "",
-        "end_date": end_date or "",
-        "event_type": event_type or "",
-        "active_page": "history",
-        "app_name": APP_NAME,
-    })
+    ctx.update(
+        {
+            "request": request,
+            "entries": entries,
+            "start_date": start_date or "",
+            "end_date": end_date or "",
+            "event_type": event_type or "",
+            "active_page": "history",
+            "app_name": APP_NAME,
+        }
+    )
     return templates.TemplateResponse("history.html", ctx)
 
 
@@ -416,11 +419,13 @@ def history(request: Request) -> HTMLResponse:
 def stats_partial(request: Request) -> HTMLResponse:
     stats = _get_stats()
     ctx = _get_ui_helpers(request)
-    ctx.update({
-        "request": request,
-        "stats": stats,
-        "stats_oob": False,
-    })
+    ctx.update(
+        {
+            "request": request,
+            "stats": stats,
+            "stats_oob": False,
+        }
+    )
     return templates.TemplateResponse("_stats.html", ctx)
 
 
@@ -433,13 +438,15 @@ def entries_partial(request: Request) -> HTMLResponse:
         start_date=start_date, end_date=end_date, event_type=event_type
     )
     ctx = _get_ui_helpers(request)
-    ctx.update({
-        "request": request,
-        "entries": entries,
-        "start_date": start_date or "",
-        "end_date": end_date or "",
-        "event_type": event_type or "",
-    })
+    ctx.update(
+        {
+            "request": request,
+            "entries": entries,
+            "start_date": start_date or "",
+            "end_date": end_date or "",
+            "event_type": event_type or "",
+        }
+    )
     return templates.TemplateResponse("_entries.html", ctx)
 
 
@@ -460,7 +467,9 @@ def log_feed(
     now_dt = datetime.now(timezone.utc)
     created_at_dt = now_dt - timedelta(minutes=minutes_ago or 0)
     if created_date or created_time:
-        created_at = _parse_date_time_input(created_date, created_time, created_at_dt, timezone_offset)
+        created_at = _parse_date_time_input(
+            created_date, created_time, created_at_dt, timezone_offset
+        )
     else:
         created_at = _parse_datetime_input(created_at, created_at_dt, timezone_offset)
     with _connect() as conn:
@@ -479,14 +488,16 @@ def log_feed(
     )
     stats = _get_stats()
     ctx = _get_ui_helpers(request)
-    ctx.update({
-        "request": request,
-        "entries": entries,
-        "stats": stats,
-        "stats_oob": False,
-        "start_date": start_date or "",
-        "end_date": end_date or "",
-    })
+    ctx.update(
+        {
+            "request": request,
+            "entries": entries,
+            "stats": stats,
+            "stats_oob": False,
+            "start_date": start_date or "",
+            "end_date": end_date or "",
+        }
+    )
     response = templates.TemplateResponse("_feed_response.html", ctx)
     response.headers["HX-Trigger"] = '{"showToast": "Feed logged!"}'
     return response
@@ -540,16 +551,18 @@ def toggle_sleep(
     stats = _get_stats()
 
     ctx = _get_ui_helpers(request)
-    ctx.update({
-        "request": request,
-        "entries": entries,
-        "sleep_state": sleep_state,
-        "stats": stats,
-        "stats_oob": True,
-        "start_date": start_date or "",
-        "end_date": end_date or "",
-        "oob": True,
-    })
+    ctx.update(
+        {
+            "request": request,
+            "entries": entries,
+            "sleep_state": sleep_state,
+            "stats": stats,
+            "stats_oob": True,
+            "start_date": start_date or "",
+            "end_date": end_date or "",
+            "oob": True,
+        }
+    )
     response = templates.TemplateResponse("_sleep_toggle_response.html", ctx)
     if sleep_state["active"]:
         response.headers["HX-Trigger"] = '{"showToast": "Sleep started..."}'
@@ -564,10 +577,12 @@ def edit_entry(entry_id: int, request: Request) -> HTMLResponse:
     if not entry:
         return HTMLResponse(status_code=404, content="Not found")
     ctx = _get_ui_helpers(request)
-    ctx.update({
-        "request": request,
-        "entry": entry,
-    })
+    ctx.update(
+        {
+            "request": request,
+            "entry": entry,
+        }
+    )
     return templates.TemplateResponse("_entry_edit.html", ctx)
 
 
@@ -606,7 +621,9 @@ def update_entry(
                 created_date, created_time, now_dt, timezone_offset
             )
         else:
-            created_at_value = _parse_datetime_input(created_at, now_dt, timezone_offset)
+            created_at_value = _parse_datetime_input(
+                created_at, now_dt, timezone_offset
+            )
         with _connect() as conn:
             conn.execute(
                 """
@@ -625,12 +642,16 @@ def update_entry(
             conn.commit()
     else:
         if started_date or started_time:
-            started_at = _parse_date_time_input(started_date, started_time, now_dt, timezone_offset)
+            started_at = _parse_date_time_input(
+                started_date, started_time, now_dt, timezone_offset
+            )
         else:
             started_at = _parse_datetime_input(started_at, now_dt, timezone_offset)
 
         if ended_date or ended_time:
-            ended_at = _parse_date_time_input(ended_date, ended_time, now_dt, timezone_offset)
+            ended_at = _parse_date_time_input(
+                ended_date, ended_time, now_dt, timezone_offset
+            )
         else:
             ended_at = _parse_datetime_input(ended_at, now_dt, timezone_offset)
         started_dt = datetime.fromisoformat(started_at)
@@ -660,12 +681,14 @@ def update_entry(
     updated = _get_entry(entry_id)
     stats = _get_stats()
     ctx = _get_ui_helpers(request)
-    ctx.update({
-        "request": request,
-        "entry": updated,
-        "stats": stats,
-        "stats_oob": True,
-    })
+    ctx.update(
+        {
+            "request": request,
+            "entry": updated,
+            "stats": stats,
+            "stats_oob": True,
+        }
+    )
     response = templates.TemplateResponse("_entry_update_response.html", ctx)
     response.headers["HX-Trigger"] = '{"showToast": "Entry updated!"}'
     return response

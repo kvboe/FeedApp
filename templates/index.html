@@ -43,7 +43,7 @@
             hx-swap="outerHTML"
             hx-include="#feed-notes"
           >
-            <input type="hidden" name="timezone_offset" class="timezone-offset-input">
+            <input type="hidden" name="timezone_offset" class="timezone-offset-input" value="{{ timezone_offset }}">
             <div class="grid grid-cols-2 bg-slate-800 p-1 rounded-xl">
               <label class="cursor-pointer">
                 <input type="radio" name="subtype" value="formula" class="peer sr-only" {% if stats.last_feed and stats.last_feed['subtype'] == 'formula' %}checked{% endif %}>
@@ -149,7 +149,7 @@
             hx-post="/weight"
             hx-swap="none"
           >
-            <input type="hidden" name="timezone_offset" class="timezone-offset-input">
+            <input type="hidden" name="timezone_offset" class="timezone-offset-input" value="{{ timezone_offset }}">
             <div>
               <label class="text-sm text-slate-400" for="weight_g">grams</label>
               <div class="flex gap-2">
