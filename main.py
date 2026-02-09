@@ -237,41 +237,57 @@ def _format_since(value: str | None) -> str:
     return _format_duration(seconds)
 
 
-def _format_datetime(value: str | None) -> str:
-    if not value:
-        return ""
-    # Return ISO so client JS can format it locally
-    return value
-
-
-def _format_datetime_input(value: str | None) -> str:
+def _format_datetime(value: str | None, offset_minutes: int = 0) -> str:
     if not value:
         return ""
     try:
         dt = datetime.fromisoformat(value)
+        if dt.tzinfo is None:
+             dt = dt.replace(tzinfo=timezone.utc)
+        # offset is (UTC - Local), so Local = UTC - offset
+        local_dt = dt - timedelta(minutes=offset_minutes)
+        return local_dt.strftime("%b %d, %H:%M")
     except ValueError:
-        return ""
-    return dt.strftime("%Y-%m-%dT%H:%M")
+        return value
 
 
-def _format_date_input(value: str | None) -> str:
+def _format_datetime_input(value: str | None, offset_minutes: int = 0) -> str:
     if not value:
         return ""
     try:
         dt = datetime.fromisoformat(value)
+        if dt.tzinfo is None:
+             dt = dt.replace(tzinfo=timezone.utc)
+        local_dt = dt - timedelta(minutes=offset_minutes)
     except ValueError:
         return ""
-    return dt.strftime("%Y-%m-%d")
+    return local_dt.strftime("%Y-%m-%dT%H:%M")
 
 
-def _format_time_input(value: str | None) -> str:
+def _format_date_input(value: str | None, offset_minutes: int = 0) -> str:
     if not value:
         return ""
     try:
         dt = datetime.fromisoformat(value)
+        if dt.tzinfo is None:
+             dt = dt.replace(tzinfo=timezone.utc)
+        local_dt = dt - timedelta(minutes=offset_minutes)
     except ValueError:
         return ""
-    return dt.strftime("%H:%M")
+    return local_dt.strftime("%Y-%m-%d")
+
+
+def _format_time_input(value: str | None, offset_minutes: int = 0) -> str:
+    if not value:
+        return ""
+    try:
+        dt = datetime.fromisoformat(value)
+        if dt.tzinfo is None:
+             dt = dt.replace(tzinfo=timezone.utc)
+        local_dt = dt - timedelta(minutes=offset_minutes)
+    except ValueError:
+        return ""
+    return local_dt.strftime("%H:%M")
 
 
 def _parse_datetime_input(
@@ -318,6 +334,22 @@ def _parse_date_time_input(
         return fallback.isoformat(timespec="seconds")
 
 
+def _get_ui_helpers(request: Request) -> dict[str, Any]:
+    try:
+        offset = int(request.cookies.get("timezone_offset", "0"))
+    except ValueError:
+        offset = 0
+
+    return {
+        "format_duration": _format_duration,
+        "format_since": _format_since,
+        "format_datetime": lambda v: _format_datetime(v, offset),
+        "format_datetime_input": lambda v: _format_datetime_input(v, offset),
+        "format_date_input": lambda v: _format_date_input(v, offset),
+        "format_time_input": lambda v: _format_time_input(v, offset),
+    }
+
+
 def _get_entry(entry_id: int) -> sqlite3.Row | None:
     with _connect() as conn:
         row = conn.execute(
@@ -344,28 +376,19 @@ def index(request: Request) -> HTMLResponse:
         except ValueError:
             pass
 
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "sleep_state": sleep_state,
-            "stats": stats,
-            "chart_data": chart_data,
-            "age_days": age_days,
-            "format_duration": _format_duration,
-            "format_since": _format_since,
-            "format_datetime": _format_datetime,
-            "format_datetime_input": _format_datetime_input,
-            "format_date_input": _format_date_input,
-            "format_time_input": _format_time_input,
-            "format_date_input": _format_date_input,
-            "format_time_input": _format_time_input,
-            "start_date": start_date or "",
-            "end_date": end_date or "",
-            "active_page": "home",
-            "app_name": APP_NAME,
-        },
-    )
+    ctx = _get_ui_helpers(request)
+    ctx.update({
+        "request": request,
+        "sleep_state": sleep_state,
+        "stats": stats,
+        "chart_data": chart_data,
+        "age_days": age_days,
+        "start_date": start_date or "",
+        "end_date": end_date or "",
+        "active_page": "home",
+        "app_name": APP_NAME,
+    })
+    return templates.TemplateResponse("index.html", ctx)
 
 
 @app.get("/history", response_class=HTMLResponse)
@@ -376,37 +399,29 @@ def history(request: Request) -> HTMLResponse:
     entries = _get_entries(
         start_date=start_date, end_date=end_date, event_type=event_type
     )
-    return templates.TemplateResponse(
-        "history.html",
-        {
-            "request": request,
-            "entries": entries,
-            "format_duration": _format_duration,
-            "format_datetime": _format_datetime,
-            "format_datetime_input": _format_datetime_input,
-            "start_date": start_date or "",
-            "end_date": end_date or "",
-            "event_type": event_type or "",
-            "active_page": "history",
-            "app_name": APP_NAME,
-        },
-    )
+    ctx = _get_ui_helpers(request)
+    ctx.update({
+        "request": request,
+        "entries": entries,
+        "start_date": start_date or "",
+        "end_date": end_date or "",
+        "event_type": event_type or "",
+        "active_page": "history",
+        "app_name": APP_NAME,
+    })
+    return templates.TemplateResponse("history.html", ctx)
 
 
 @app.get("/stats", response_class=HTMLResponse)
 def stats_partial(request: Request) -> HTMLResponse:
     stats = _get_stats()
-    return templates.TemplateResponse(
-        "_stats.html",
-        {
-            "request": request,
-            "stats": stats,
-            "stats_oob": False,
-            "format_duration": _format_duration,
-            "format_since": _format_since,
-            "format_datetime": _format_datetime,
-        },
-    )
+    ctx = _get_ui_helpers(request)
+    ctx.update({
+        "request": request,
+        "stats": stats,
+        "stats_oob": False,
+    })
+    return templates.TemplateResponse("_stats.html", ctx)
 
 
 @app.get("/entries", response_class=HTMLResponse)
@@ -417,19 +432,15 @@ def entries_partial(request: Request) -> HTMLResponse:
     entries = _get_entries(
         start_date=start_date, end_date=end_date, event_type=event_type
     )
-    return templates.TemplateResponse(
-        "_entries.html",
-        {
-            "request": request,
-            "entries": entries,
-            "format_duration": _format_duration,
-            "format_datetime": _format_datetime,
-            "format_datetime_input": _format_datetime_input,
-            "start_date": start_date or "",
-            "end_date": end_date or "",
-            "event_type": event_type or "",
-        },
-    )
+    ctx = _get_ui_helpers(request)
+    ctx.update({
+        "request": request,
+        "entries": entries,
+        "start_date": start_date or "",
+        "end_date": end_date or "",
+        "event_type": event_type or "",
+    })
+    return templates.TemplateResponse("_entries.html", ctx)
 
 
 @app.post("/feed", response_class=HTMLResponse)
@@ -467,21 +478,16 @@ def log_feed(
         end_date=end_date or None,
     )
     stats = _get_stats()
-    response = templates.TemplateResponse(
-        "_feed_response.html",
-        {
-            "request": request,
-            "entries": entries,
-            "stats": stats,
-            "stats_oob": False,
-            "format_duration": _format_duration,
-            "format_since": _format_since,
-            "format_datetime": _format_datetime,
-            "format_datetime_input": _format_datetime_input,
-            "start_date": start_date or "",
-            "end_date": end_date or "",
-        },
-    )
+    ctx = _get_ui_helpers(request)
+    ctx.update({
+        "request": request,
+        "entries": entries,
+        "stats": stats,
+        "stats_oob": False,
+        "start_date": start_date or "",
+        "end_date": end_date or "",
+    })
+    response = templates.TemplateResponse("_feed_response.html", ctx)
     response.headers["HX-Trigger"] = '{"showToast": "Feed logged!"}'
     return response
 
@@ -533,25 +539,18 @@ def toggle_sleep(
     sleep_state = _get_sleep_state()
     stats = _get_stats()
 
-    response = templates.TemplateResponse(
-        "_sleep_toggle_response.html",
-        {
-            "request": request,
-            "entries": entries,
-            "sleep_state": sleep_state,
-            "stats": stats,
-            "stats_oob": True,
-            "format_duration": _format_duration,
-            "format_since": _format_since,
-            "format_datetime": _format_datetime,
-            "format_datetime_input": _format_datetime_input,
-            "format_date_input": _format_date_input,
-            "format_time_input": _format_time_input,
-            "start_date": start_date or "",
-            "end_date": end_date or "",
-            "oob": True,
-        },
-    )
+    ctx = _get_ui_helpers(request)
+    ctx.update({
+        "request": request,
+        "entries": entries,
+        "sleep_state": sleep_state,
+        "stats": stats,
+        "stats_oob": True,
+        "start_date": start_date or "",
+        "end_date": end_date or "",
+        "oob": True,
+    })
+    response = templates.TemplateResponse("_sleep_toggle_response.html", ctx)
     if sleep_state["active"]:
         response.headers["HX-Trigger"] = '{"showToast": "Sleep started..."}'
     else:
@@ -564,18 +563,12 @@ def edit_entry(entry_id: int, request: Request) -> HTMLResponse:
     entry = _get_entry(entry_id)
     if not entry:
         return HTMLResponse(status_code=404, content="Not found")
-    return templates.TemplateResponse(
-        "_entry_edit.html",
-        {
-            "request": request,
-            "entry": entry,
-            "format_duration": _format_duration,
-            "format_datetime": _format_datetime,
-            "format_datetime_input": _format_datetime_input,
-            "format_date_input": _format_date_input,
-            "format_time_input": _format_time_input,
-        },
-    )
+    ctx = _get_ui_helpers(request)
+    ctx.update({
+        "request": request,
+        "entry": entry,
+    })
+    return templates.TemplateResponse("_entry_edit.html", ctx)
 
 
 @app.post("/entries/{entry_id}", response_class=HTMLResponse)
@@ -666,18 +659,14 @@ def update_entry(
 
     updated = _get_entry(entry_id)
     stats = _get_stats()
-    response = templates.TemplateResponse(
-        "_entry_update_response.html",
-        {
-            "request": request,
-            "entry": updated,
-            "stats": stats,
-            "stats_oob": True,
-            "format_duration": _format_duration,
-            "format_since": _format_since,
-            "format_datetime": _format_datetime,
-        },
-    )
+    ctx = _get_ui_helpers(request)
+    ctx.update({
+        "request": request,
+        "entry": updated,
+        "stats": stats,
+        "stats_oob": True,
+    })
+    response = templates.TemplateResponse("_entry_update_response.html", ctx)
     response.headers["HX-Trigger"] = '{"showToast": "Entry updated!"}'
     return response
 
