@@ -20,7 +20,7 @@ A minimal, fast, and modern Progressive Web App (PWA) for tracking baby feeding,
 - **🗓️ History**: Distinct color-coded timeline edits for all event types.
 
 ### Technical & UX
-- **🌍 Timezone Aware**: 
+- **🌍 Timezone Aware**:
   - All data stored in **UTC** for consistency.
   - Displayed in **Local Time** based on your browser/device settings (User-friendly for travel or DST).
 - **📱 PWA Support**: Installable on iOS/Android (Add to Home Screen) with proper manifest and icons.
