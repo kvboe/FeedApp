@@ -1,9 +1,12 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
+
 from fastapi import Request
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
 
 def format_duration(seconds: int | None) -> str:
     if not seconds:
@@ -14,6 +17,7 @@ def format_duration(seconds: int | None) -> str:
     if hours:
         return f"{hours}h {minutes}m"
     return f"{minutes}m"
+
 
 def format_since(value: str | None) -> str:
     if not value:
@@ -28,6 +32,7 @@ def format_since(value: str | None) -> str:
     seconds = max(0, int(delta.total_seconds()))
     return format_duration(seconds)
 
+
 def format_datetime(value: str | None, offset_minutes: int = 0) -> str:
     if not value:
         return ""
@@ -41,6 +46,7 @@ def format_datetime(value: str | None, offset_minutes: int = 0) -> str:
     except ValueError:
         return value
 
+
 def format_datetime_input(value: str | None, offset_minutes: int = 0) -> str:
     if not value:
         return ""
@@ -52,6 +58,7 @@ def format_datetime_input(value: str | None, offset_minutes: int = 0) -> str:
     except ValueError:
         return ""
     return local_dt.strftime("%Y-%m-%dT%H:%M")
+
 
 def format_date_input(value: str | None, offset_minutes: int = 0) -> str:
     if not value:
@@ -65,6 +72,7 @@ def format_date_input(value: str | None, offset_minutes: int = 0) -> str:
         return ""
     return local_dt.strftime("%Y-%m-%d")
 
+
 def format_time_input(value: str | None, offset_minutes: int = 0) -> str:
     if not value:
         return ""
@@ -76,6 +84,7 @@ def format_time_input(value: str | None, offset_minutes: int = 0) -> str:
     except ValueError:
         return ""
     return local_dt.strftime("%H:%M")
+
 
 def parse_datetime_input(
     value: str | None, fallback: datetime, offset_minutes: int = 0
@@ -92,6 +101,7 @@ def parse_datetime_input(
         except ValueError:
             pass
     return fallback.isoformat(timespec="seconds")
+
 
 def parse_date_time_input(
     date_value: str | None,
@@ -116,6 +126,7 @@ def parse_date_time_input(
         return dt.isoformat(timespec="seconds")
     except ValueError:
         return fallback.isoformat(timespec="seconds")
+
 
 def get_ui_helpers(request: Request) -> dict[str, Any]:
     try:

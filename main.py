@@ -8,27 +8,27 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.config import APP_NAME, BASE_DIR
-from app.database import init_db
-from app.utils import (
-    now_iso,
-    parse_datetime_input,
-    parse_date_time_input,
-    get_ui_helpers
-)
 from app.crud import (
-    get_sleep_state,
-    get_stats,
+    create_feed,
+    create_weight,
+    delete_event,
     get_daily_chart_data,
     get_entries,
     get_entry,
     get_setting,
+    get_sleep_state,
+    get_stats,
     set_setting,
-    create_feed,
-    create_weight,
-    delete_event,
+    toggle_sleep_state,
     update_feed_event,
     update_other_event,
-    toggle_sleep_state
+)
+from app.database import init_db
+from app.utils import (
+    get_ui_helpers,
+    now_iso,
+    parse_date_time_input,
+    parse_datetime_input,
 )
 
 app = FastAPI(title=APP_NAME)
@@ -156,7 +156,7 @@ def log_feed(
         )
     else:
         created_at = parse_datetime_input(created_at, created_at_dt, timezone_offset)
-    
+
     create_feed(subtype, amount_ml, notes.strip() or None, created_at)
 
     entries = get_entries(
@@ -187,7 +187,7 @@ def toggle_sleep(
     start_date: str = Form(""),
     end_date: str = Form(""),
 ) -> HTMLResponse:
-    
+
     sleep_state_res = toggle_sleep_state(notes.strip() or "")
 
     entries = get_entries(
@@ -268,10 +268,10 @@ def update_entry(
                 created_date, created_time, now_dt, timezone_offset
             )
         else:
-            created_at_value = parse_datetime_input(
-                created_at, now_dt, timezone_offset
-            )
-        update_feed_event(entry_id, amount, subtype_val, notes.strip() or None, created_at_value)
+            created_at_value = parse_datetime_input(created_at, now_dt, timezone_offset)
+        update_feed_event(
+            entry_id, amount, subtype_val, notes.strip() or None, created_at_value
+        )
     else:
         if started_date or started_time:
             started_at = parse_date_time_input(
@@ -292,7 +292,9 @@ def update_entry(
             ended_dt = started_dt
             ended_at = ended_dt.isoformat(timespec="seconds")
         duration_sec = int((ended_dt - started_dt).total_seconds())
-        update_other_event(entry_id, started_at, ended_at, duration_sec, notes.strip() or None)
+        update_other_event(
+            entry_id, started_at, ended_at, duration_sec, notes.strip() or None
+        )
 
     updated = get_entry(entry_id)
     stats = get_stats()
@@ -349,7 +351,7 @@ def log_weight_route(
 ) -> HTMLResponse:
     now_dt = datetime.now(timezone.utc)
     created_at = parse_datetime_input(created_at, now_dt, timezone_offset)
-    
+
     create_weight(weight_g, notes.strip() or None, created_at)
 
     response = HTMLResponse(
