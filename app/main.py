@@ -7,8 +7,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.config import APP_NAME, BASE_DIR
-from app.crud import (
+from .config import APP_NAME, BASE_DIR
+from .crud import (
     create_feed,
     create_weight,
     delete_event,
@@ -23,10 +23,9 @@ from app.crud import (
     update_feed_event,
     update_other_event,
 )
-from app.database import init_db
-from app.utils import (
+from .database import init_db
+from .utils import (
     get_ui_helpers,
-    now_iso,
     parse_date_time_input,
     parse_datetime_input,
 )
