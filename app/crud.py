@@ -1,9 +1,10 @@
+import sqlite3
 from datetime import datetime, timedelta, timezone
 from typing import Any
-import sqlite3
 
 from app.database import get_connection
 from app.utils import now_iso
+
 
 def get_setting(key: str) -> str | None:
     with get_connection() as conn:
@@ -166,6 +167,7 @@ def get_stats() -> dict[str, Any]:
         "current_sleep_duration": current_sleep_duration,
     }
 
+
 def get_entry(entry_id: int) -> sqlite3.Row | None:
     with get_connection() as conn:
         row = conn.execute(
@@ -173,6 +175,7 @@ def get_entry(entry_id: int) -> sqlite3.Row | None:
             (entry_id,),
         ).fetchone()
     return row
+
 
 def create_feed(subtype: str, amount_ml: int, notes: str, created_at: str) -> None:
     with get_connection() as conn:
@@ -185,6 +188,7 @@ def create_feed(subtype: str, amount_ml: int, notes: str, created_at: str) -> No
         )
         conn.commit()
 
+
 def create_weight(weight_g: int, notes: str, created_at: str) -> None:
     with get_connection() as conn:
         conn.execute(
@@ -196,12 +200,16 @@ def create_weight(weight_g: int, notes: str, created_at: str) -> None:
         )
         conn.commit()
 
+
 def delete_event(entry_id: int) -> None:
     with get_connection() as conn:
         conn.execute("DELETE FROM events WHERE id = ?", (entry_id,))
         conn.commit()
 
-def update_feed_event(entry_id: int, amount_ml: int, subtype: str, notes: str | None, created_at: str) -> None:
+
+def update_feed_event(
+    entry_id: int, amount_ml: int, subtype: str, notes: str | None, created_at: str
+) -> None:
     with get_connection() as conn:
         conn.execute(
             """
@@ -209,12 +217,15 @@ def update_feed_event(entry_id: int, amount_ml: int, subtype: str, notes: str | 
             SET amount_ml = ?, subtype = ?, notes = ?, created_at = ?
             WHERE id = ?;
             """,
-            (amount_ml, subtype, notes, created_at, entry_id)
+            (amount_ml, subtype, notes, created_at, entry_id),
         )
         conn.commit()
 
-def update_other_event(entry_id: int, started_at: str, ended_at: str, duration_sec: int, notes: str | None) -> None:
-     with get_connection() as conn:
+
+def update_other_event(
+    entry_id: int, started_at: str, ended_at: str, duration_sec: int, notes: str | None
+) -> None:
+    with get_connection() as conn:
         conn.execute(
             """
             UPDATE events
@@ -225,17 +236,18 @@ def update_other_event(entry_id: int, started_at: str, ended_at: str, duration_s
         )
         conn.commit()
 
+
 def toggle_sleep_state(notes: str) -> dict[str, Any]:
-    # This returns state to help with notifications if needed, 
+    # This returns state to help with notifications if needed,
     # but currently UI checks active state after fetch.
     now = now_iso()
     with get_connection() as conn:
         row = conn.execute(
             "SELECT started_at FROM sleep_state WHERE id = 1;"
         ).fetchone()
-        
+
         sleep_state = {"active": False}
-        
+
         if row:
             # Wake up
             started_at = row["started_at"]
