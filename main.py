@@ -103,7 +103,7 @@ def _get_entries(
     start_date: str | None = None,
     end_date: str | None = None,
     event_type: str | None = None,
-) -> list[sqlite3.Row]:
+) -> list[dict[str, Any]]:
     query = "SELECT * FROM events"
     clauses: list[str] = []
     params: list[Any] = []
@@ -126,7 +126,25 @@ def _get_entries(
 
     with _connect() as conn:
         rows = conn.execute(query, params).fetchall()
-    return list(rows)
+    
+    entries = [dict(row) for row in rows]
+    for i in range(len(entries) - 1):
+        curr_entry = entries[i]
+        prev_entry = entries[i+1]
+        try:
+            curr_dt = datetime.fromisoformat(curr_entry["created_at"])
+            prev_dt = datetime.fromisoformat(prev_entry["created_at"])
+            if curr_dt.tzinfo is None:
+                curr_dt = curr_dt.replace(tzinfo=timezone.utc)
+            if prev_dt.tzinfo is None:
+                prev_dt = prev_dt.replace(tzinfo=timezone.utc)
+            
+            diff = int((curr_dt - prev_dt).total_seconds())
+            curr_entry["time_since_prev"] = diff
+        except (ValueError, TypeError):
+            pass
+
+    return entries
 
 
 def _get_sleep_state() -> dict[str, Any]:
@@ -187,6 +205,15 @@ def _get_stats() -> dict[str, Any]:
             LIMIT 1;
             """
         ).fetchone()
+        last_weight = conn.execute(
+            """
+            SELECT amount_ml, created_at
+            FROM events
+            WHERE type = 'weight'
+            ORDER BY datetime(created_at) DESC
+            LIMIT 1;
+            """
+        ).fetchone()
         sleep_row = conn.execute(
             "SELECT started_at FROM sleep_state WHERE id = 1;"
         ).fetchone()
@@ -206,6 +233,7 @@ def _get_stats() -> dict[str, Any]:
     return {
         "last_feed": last_feed,
         "last_sleep": last_sleep,
+        "last_weight": last_weight,
         "sleep_active": sleep_active,
         "sleep_started_at": sleep_started_at,
         "current_sleep_duration": current_sleep_duration,
