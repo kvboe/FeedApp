@@ -12,7 +12,14 @@
         📌
       {% endif %}
     </span>
-    <span class="text-xs text-slate-500">{{ format_datetime(entry.created_at) }}</span>
+    <div class="text-right">
+      <div class="text-xs text-slate-500">{{ format_datetime(entry.created_at) }}</div>
+      {% if entry.time_since_prev %}
+      <div class="text-[10px] text-slate-600">
+        + {{ format_duration(entry.time_since_prev) }}
+      </div>
+      {% endif %}
+    </div>
   </div>
   <div class="mt-2 text-lg font-semibold">
     {% if entry.type == 'feed' %}
