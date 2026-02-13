@@ -89,8 +89,6 @@ def format_time_input(value: str | None, offset_minutes: int = 0) -> str:
 def parse_datetime_input(
     value: str | None, fallback: datetime, offset_minutes: int = 0
 ) -> str:
-    # offset_minutes is timezone difference in minutes (e.g. UTC+1 = -60)
-    # We add it to convert Local -> UTC.
     if value:
         try:
             dt = datetime.fromisoformat(value)
