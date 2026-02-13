@@ -126,11 +126,11 @@ def _get_entries(
 
     with _connect() as conn:
         rows = conn.execute(query, params).fetchall()
-    
+
     entries = [dict(row) for row in rows]
     for i in range(len(entries) - 1):
         curr_entry = entries[i]
-        prev_entry = entries[i+1]
+        prev_entry = entries[i + 1]
         try:
             curr_dt = datetime.fromisoformat(curr_entry["created_at"])
             prev_dt = datetime.fromisoformat(prev_entry["created_at"])
@@ -138,7 +138,7 @@ def _get_entries(
                 curr_dt = curr_dt.replace(tzinfo=timezone.utc)
             if prev_dt.tzinfo is None:
                 prev_dt = prev_dt.replace(tzinfo=timezone.utc)
-            
+
             diff = int((curr_dt - prev_dt).total_seconds())
             curr_entry["time_since_prev"] = diff
         except (ValueError, TypeError):
