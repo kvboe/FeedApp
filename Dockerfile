@@ -1,5 +1,7 @@
 # ---- 1. Build the React frontend -------------------------------------------
-FROM node:22-alpine AS frontend
+# The built files are plain HTML/JS/CSS, the same for every CPU, so this stage
+# runs on the build machine's own platform (no emulation in multi-arch builds).
+FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
 WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
