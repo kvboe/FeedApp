@@ -1,8 +1,8 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { motion } from "motion/react";
 import { Baby, Moon, Smartphone, Sun } from "lucide-react";
-import { Card, CardTitle, Label, PrimaryButton, Segmented, Skeleton } from "../components/ui";
-import { useSaveSettings, useSettings } from "../lib/queries";
+import { Card, CardTitle, Label, PrimaryButton, Segmented } from "../components/ui";
+import { useSaveSettings, useSummary } from "../lib/queries";
 import { ageDays, ageLabel, localDateKey } from "../lib/time";
 
 type Theme = "system" | "dark" | "light";
@@ -35,18 +35,19 @@ const item = {
 } as const;
 
 export function Settings() {
-  const { data, isLoading } = useSettings();
+  // The summary (already loaded by the app shell, refreshed every 30 s) is the single source
+  // of the birth date, so the first frame is final: no skeleton -> form height jump, no
+  // "Baby profile" -> "Day N" flash, and a change from another phone shows up here too.
+  const { data: summary, isPending } = useSummary();
+  const saved = summary?.birthdate ?? "";
   const save = useSaveSettings();
-  const [birthdate, setBirthdate] = useState("");
+  const [draft, setDraft] = useState<string | null>(null); // null = not edited
   const [theme, setTheme] = useState<Theme>(readTheme);
 
-  useEffect(() => {
-    if (data) setBirthdate(data.birthdate ?? "");
-  }, [data]);
-
+  const birthdate = draft ?? saved;
   const day = ageDays(birthdate || null);
   const age = ageLabel(birthdate || null);
-  const dirty = (data?.birthdate ?? "") !== birthdate;
+  const dirty = draft !== null && draft !== saved;
 
   return (
     <div>
@@ -73,32 +74,33 @@ export function Settings() {
 
         <Card custom={1} variants={item} initial="hidden" animate="show">
           <CardTitle>Baby profile</CardTitle>
-          {isLoading ? (
-            <Skeleton className="h-28" />
-          ) : (
-            <form
-              className="flex flex-col gap-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                save.mutate({ birthdate: birthdate || null });
-              }}
-            >
-              <div>
-                <Label htmlFor="birthdate">Birth date</Label>
-                <input
-                  id="birthdate"
-                  type="date"
-                  className="field"
-                  value={birthdate}
-                  max={localDateKey(new Date())}
-                  onChange={(e) => setBirthdate(e.target.value)}
-                />
-              </div>
-              <PrimaryButton type="submit" loading={save.isPending} disabled={!dirty}>
-                Save
-              </PrimaryButton>
-            </form>
-          )}
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const submitted = birthdate;
+              // Keep an edit made while the save was in flight; only drop the draft we saved.
+              save.mutate({ birthdate: submitted || null }, { onSuccess: () => setDraft((d) => (d === submitted ? null : d)) });
+            }}
+          >
+            <div>
+              <Label htmlFor="birthdate">Birth date</Label>
+              {/* Disabled only during the first load; if it fails, the field stays usable. */}
+              <input
+                id="birthdate"
+                type="date"
+                className="field"
+                value={birthdate}
+                disabled={isPending}
+                max={localDateKey(new Date())}
+                // Back to the saved value = not edited, so a later change from another phone shows up.
+                onChange={(e) => setDraft(e.target.value === saved ? null : e.target.value)}
+              />
+            </div>
+            <PrimaryButton type="submit" loading={save.isPending} disabled={!dirty}>
+              Save
+            </PrimaryButton>
+          </form>
         </Card>
 
         <Card custom={2} variants={item} initial="hidden" animate="show">

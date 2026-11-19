@@ -1,13 +1,12 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, PAGE_SIZE, type PageCursor } from "./api";
-import type { Entry, EntryFilters } from "./types";
+import type { Entry, EntryFilters, Summary } from "./types";
 import { useToast } from "../components/Toast";
 import { haptic } from "./haptics";
 
 export const keys = {
   summary: ["summary"] as const,
   entries: (f: Partial<EntryFilters>) => ["entries", f] as const,
-  settings: ["settings"] as const,
 };
 
 export function useSummary() {
@@ -33,10 +32,6 @@ export function useEntries(filters: Partial<EntryFilters>, pageSize = PAGE_SIZE)
       return data.pages.flatMap((p) => p.items).filter((e) => !seen.has(e.id) && !!seen.add(e.id));
     },
   });
-}
-
-export function useSettings() {
-  return useQuery({ queryKey: keys.settings, queryFn: api.settings });
 }
 
 /** Wraps a mutation with cache invalidation, a toast and a haptic tick. */
@@ -89,9 +84,10 @@ export function useSaveSettings() {
     mutationFn: api.saveSettings,
     onSuccess: (data) => {
       haptic("success");
-      qc.setQueryData(keys.settings, data);
+      // The summary is the single source of the birth date (it also polls every 30 s);
+      // the PUT response already holds the new value, so no refetch is needed.
+      qc.setQueryData<Summary>(keys.summary, (s) => s && { ...s, birthdate: data.birthdate });
       toast.show("Settings saved", "success");
-      return qc.invalidateQueries({ queryKey: keys.summary });
     },
     onError: (err: Error) => toast.show(err.message, "error"),
   });

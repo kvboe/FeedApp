@@ -1,5 +1,5 @@
-import { useId, type ComponentProps, type ReactNode } from "react";
-import { motion } from "motion/react";
+import { type ComponentProps, type ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { haptic } from "../lib/haptics";
 
 export const spring = { type: "spring", stiffness: 420, damping: 34 } as const;
@@ -87,9 +87,29 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void;
   options: { value: T; label: ReactNode; color?: string }[];
 }) {
-  const id = useId();
+  const index = options.findIndex((o) => o.value === value);
+  const selected = index >= 0 ? options[index] : null;
   return (
     <div className="relative grid rounded-full bg-surface-2 p-1" style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
+      {/* One pill that slides by its own width. Deliberately not a layout/layoutId
+          animation: those re-animate whenever the surrounding page shifts (e.g. a card
+          above it changes height), which made the pill visibly lag behind its track.
+          Mounted only while something is selected, so the first pick fades in right under
+          the chosen option (initial x = target) instead of sliding in from the first one. */}
+      <AnimatePresence initial={false}>
+        {selected && (
+          <motion.span
+            key="pill"
+            aria-hidden
+            className="absolute inset-y-1 left-1 rounded-full transition-[background-color] duration-200"
+            style={{ width: `calc((100% - 0.5rem) / ${options.length})`, background: selected.color ?? "var(--accent)" }}
+            initial={{ x: `${index * 100}%`, opacity: 0 }}
+            animate={{ x: `${index * 100}%`, opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={spring}
+          />
+        )}
+      </AnimatePresence>
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -104,14 +124,6 @@ export function Segmented<T extends string>({
               active ? "text-white" : "text-muted"
             }`}
           >
-            {active && (
-              <motion.span
-                layoutId={`seg-${id}`}
-                transition={spring}
-                className="absolute inset-0 -z-10 rounded-full"
-                style={{ background: o.color ?? "var(--accent)" }}
-              />
-            )}
             {o.label}
           </button>
         );

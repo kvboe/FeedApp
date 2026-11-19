@@ -5,13 +5,13 @@ from datetime import datetime, timedelta, timezone, tzinfo
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, FastAPI, HTTPException, Query, Response
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request, Response
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import crud
 from .config import APP_NAME, BASE_DIR
-from .database import init_db
+from .database import get_connection, init_db
 from .schemas import (
     Entry,
     EntryPage,
@@ -37,6 +37,24 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title=APP_NAME, lifespan=lifespan)
 api = APIRouter(prefix="/api")
+
+_WRITE_METHODS = {"POST", "PUT", "PATCH"}
+
+
+@app.middleware("http")
+async def require_json_writes(request: Request, call_next):
+    """CSRF guard: writes must be sent as application/json.
+
+    FastAPI parses a body with *no* Content-Type as JSON, and a browser sends such a
+    "simple" request cross-site without a CORS preflight, so any web page opened on a
+    device in the same network could otherwise log entries. A JSON Content-Type forces
+    a preflight, which fails because this API allows no other origins.
+    """
+    if request.method in _WRITE_METHODS and request.url.path.startswith("/api/"):
+        ctype = request.headers.get("content-type", "").split(";")[0].strip().lower()
+        if ctype != "application/json":
+            return JSONResponse({"detail": "Content-Type must be application/json"}, status_code=415)
+    return await call_next(request)
 
 
 def _clean_notes(notes: str | None) -> str | None:
@@ -71,6 +89,14 @@ def _resolve_tz(tz: str | None, tz_offset: int) -> tzinfo:
 
 
 # ------------------------------------------------------------------ reads
+
+
+@api.get("/health", include_in_schema=False)
+def health() -> dict:
+    """Liveness probe for Docker: the app is up and the database answers."""
+    with get_connection() as conn:
+        conn.execute("SELECT 1;").fetchone()
+    return {"status": "ok"}
 
 
 @api.get("/summary", response_model=Summary)

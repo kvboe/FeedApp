@@ -75,7 +75,10 @@ export function App() {
 
   return (
     <NavContext.Provider value={nav}>
-      <main className="mx-auto min-h-dvh max-w-lg overflow-x-clip px-4 pb-32 pt-safe">
+      {/* relative: AnimatePresence "popLayout" pins the exiting screen with position:absolute;
+          main must be its containing block so overflow-x-clip clips it. Otherwise the screen
+          sliding out to the right widens the page and the whole layout + tab bar jump. */}
+      <main className="relative mx-auto min-h-dvh max-w-lg overflow-x-clip px-4 pb-32 pt-safe">
         <AnimatePresence mode="popLayout" initial={false} custom={dir}>
           <motion.div
             key={tab}
@@ -124,8 +127,9 @@ function TabBar({ tab, go }: { tab: Tab; go: (t: Tab) => void }) {
               type="button"
               whileTap={{ scale: 0.92 }}
               onClick={() => go(id)}
+              aria-label={label}
               aria-current={active ? "page" : undefined}
-              className={`relative flex h-12 flex-1 items-center justify-center gap-2 rounded-full text-[13px] font-semibold transition-colors ${
+              className={`relative flex h-12 flex-1 items-center justify-center rounded-full text-[13px] font-semibold transition-colors ${
                 active ? "text-fg" : "text-muted"
               }`}
             >
@@ -146,7 +150,9 @@ function TabBar({ tab, go }: { tab: Tab; go: (t: Tab) => void }) {
                     exit={{ width: 0, opacity: 0 }}
                     transition={{ type: "spring", stiffness: 500, damping: 40 }}
                   >
-                    {label}
+                    {/* Spacing lives inside the animated width (not a flex gap), so the
+                        icon glides instead of snapping 4px on mount/unmount. */}
+                    <span className="block pl-2">{label}</span>
                   </motion.span>
                 )}
               </AnimatePresence>

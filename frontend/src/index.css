@@ -90,6 +90,14 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* Always reserve the scrollbar's space: Home/History scroll but Settings fits the screen,
+   so a classic scrollbar vanishing after the tab transition shifted everything sideways.
+   (No overflow on html: it would stop body's overflow reaching the viewport, which breaks
+   BottomSheet's scroll lock. Sideways clipping is done by <main> in App.tsx.) */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   min-height: 100dvh;
 }

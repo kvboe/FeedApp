@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Baby, ChevronRight, List, Moon, Plus, Sunrise, Weight } from "lucide-react";
+import { Baby, ChevronRight, Moon, Plus, Sunrise, Weight } from "lucide-react";
 import { Card, CardTitle, Press, Skeleton } from "../components/ui";
 import { Amount, DurationFlow, LiveDuration, LiveDurationText } from "../components/Duration";
 import { EntryRow, entryMeta } from "../components/EntryRow";
@@ -102,7 +102,7 @@ export function Home() {
         </motion.div>
 
         {/* Quick actions */}
-        <motion.div variants={rise} className="grid grid-cols-4 gap-2 pb-6">
+        <motion.div variants={rise} className="grid grid-cols-3 gap-2 pb-6">
           <Action label="Feed" onClick={() => openSheet("feed")} icon={<Plus size={24} strokeWidth={2.6} />} />
           <Action
             label={sleeping ? "Wake up" : "Sleep"}
@@ -111,7 +111,6 @@ export function Home() {
             highlight={sleeping}
           />
           <Action label="Weight" onClick={() => openSheet("weight")} icon={<Weight size={22} strokeWidth={2.4} />} />
-          <Action label="History" onClick={() => go("history")} icon={<List size={22} strokeWidth={2.4} />} />
         </motion.div>
 
         <div className="flex flex-col gap-3">
