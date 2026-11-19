@@ -1,0 +1,59 @@
+name: Bug report
+description: Something doesn't work, looks wrong or is confusing.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing FeedApp! Please leave out real names and other personal data.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you see? What did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Home
+        2. Tap Feed, choose Mother's, Left, 100 ml
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Phone and browser
+      placeholder: e.g. iPhone 15, iOS 18, Safari / Pixel 8, Android 15, Chrome
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: How do you open FeedApp?
+      options:
+        - Installed on the home screen
+        - In a browser tab
+    validations:
+      required: true
+  - type: dropdown
+    id: theme
+    attributes:
+      label: Theme
+      options:
+        - Dark
+        - Light
+        - Auto
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The image tag or commit you run, if you know it (e.g. `latest` pulled on 2026-11-20, or `sha-1a2b3c4`).
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots or screen recording
+      description: Drag files here. Please hide any personal data first.

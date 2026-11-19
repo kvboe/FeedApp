@@ -1,0 +1,20 @@
+# FeedApp - run the prebuilt image (amd64 and arm64, incl. Raspberry Pi 4/5).
+#
+#   docker compose up -d        start (first run downloads the image)
+#   docker compose pull && docker compose up -d   update
+#
+# Then open http://<this-machine's-IP>:8001 on your phone.
+# Your data lives in the "feedapp_data" volume and survives updates.
+
+services:
+  feedapp:
+    image: ghcr.io/kvboe/feedapp:latest
+    container_name: feedapp
+    ports:
+      - "8001:8000" # change the left number to use another port
+    volumes:
+      - feedapp_data:/data
+    restart: unless-stopped
+
+volumes:
+  feedapp_data:
