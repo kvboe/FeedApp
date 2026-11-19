@@ -1,104 +1,84 @@
 # FeedApp
 
-A minimal, fast, and modern Progressive Web App (PWA) for tracking baby feeding, sleep, and weight. Built with **FastAPI**, **HTMX**, and **Tailwind CSS**.
+A fast, installable Progressive Web App for tracking a baby's **feeds**, **sleep** and **weight**, with a Revolut-inspired UI and fluid animations.
 
-## 🚀 Features
+## Features
 
-### Tracking
-- **🍼 Feeding**: Log specific amounts (ml) for **Formula** or **Mother's Milk**.
-  - **Smart Defaults**: The app remembers your last used feed type (Formula/Mother's) for quicker logging.
-  - **Backdating**: Easily log feeds from "15 minutes ago" or set exact past times.
-- **🌙 Sleep**: Simple "Start Sleep" / "Wake Up" timer. Manual entry editing supported.
-- **⚖️ Weight**: Track development with weight logs (grams).
+- **Feeding**: log ml of **Formula** or **Mother's milk**. For mother's milk, choose the **left or right breast**; the next feed suggests the other side. Smart defaults pick the last type and amount. Quick amount chips, ±10 ml steppers, and backdating ("15 min ago", "1 h ago" or a custom number of minutes).
+- **Sleep**: one-tap Start/Stop with a live timer, an optional note, and a "sleeping" indicator in the header.
+- **Weight**: log grams, see the change since the last weigh-in, and a trend sparkline.
+- **Dashboard**: a live "since last feed" counter, current and previous sleep, a 7-day feeding chart (tap a bar to see that day), recent entries, and the baby's age ("Day N", months and days).
+- **History**: entries grouped by day like a bank-transactions list, with daily totals, the time since the previous entry, filters (Today / Feeds / Sleep / Weight / date range) and infinite scroll.
+- **Edit and delete** any entry in a bottom sheet (feed: type, amount, time; sleep: start and end; weight: grams and time).
+- **Settings**: the baby's birth date and the theme (Auto / Dark / Light).
+- **Timezone aware**: stored in UTC and shown in the device's local time. Day filters and the chart follow local days.
+- **PWA**: manifest, PNG and maskable icons, a service worker that caches the app shell, and home-screen shortcuts.
 
-### Insights & Analysis
-- **📊 Charts**: 7-day bar chart showing total daily feed volume.
-- **📈 Stats**: Quick view of:
-  - Time since last feed / duration.
-  - Current sleep duration (real-time).
-  - Last sleep session duration.
-- **🗓️ History**: Distinct color-coded timeline edits for all event types.
+## Tech stack
 
-### Technical & UX
-- **🌍 Timezone Aware**:
-  - All data stored in **UTC** for consistency.
-  - Displayed in **Local Time** based on your browser/device settings (User-friendly for travel or DST).
-- **📱 PWA Support**: Installable on iOS/Android (Add to Home Screen) with proper manifest and icons.
-- **🔔 Toast Notifications**: Immediate feedback for actions (Logged, Updated, Deleted).
-- **⚡ Single Page Feel**: HTMX powers seamless transitions without full page reloads.
+| Layer    | Tech |
+|----------|------|
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, Motion (animations), TanStack Query, NumberFlow (rolling digits), Lucide icons, Inter |
+| Backend  | Python 3.12, FastAPI (JSON API under `/api`), SQLite |
+| Deploy   | Multi-stage Docker image (Node builds the SPA, Python serves the API and the static build) |
 
-## 🛠️ Tech Stack
+## Run with Docker Compose (recommended)
 
-- **Backend**: Python 3.12+, FastAPI, SQLite.
-- **Frontend**: Jinja2 Templates, HTMX (interactions), Tailwind CSS (styling), Chart.js.
-- **Deployment**: Docker & Docker Compose.
-
-## 🐳 Installation (Docker Compose) - Recommended
-
-The easiest way to run FeedApp is using Docker Compose.
-
-### Prerequisites
-- Docker
-- Docker Compose
-
-### Steps
-
-1. **Clone the repository** (or copy the files):
-   ```bash
-   git clone <repository-url>
-   cd FeedApp
-   ```
-
-2. **Start the application**:
-   ```bash
-   docker compose up -d
-   ```
-   *This will build the image and start the container in the background.*
-
-3. **Access the App**:
-   Open your browser and navigate to:
-   👉 **http://localhost:8001**
-
-   *(Note: The default host port is 8001; you can change this in `docker-compose.yml` if needed)*
-
-4. **Data Persistence**:
-   A Docker volume `feedapp_data` is created to persist your SQLite database (`feedapp.db`). Your data will survive container restarts.
-
-### Stopping the App
 ```bash
-docker compose down
+docker compose up -d --build
 ```
 
-## 🐍 Manual Installation (Python)
+Open **http://localhost:8001**. Data lives in the `feedapp_data` volume (`/data/feedapp.db`). Existing v1 databases work as-is: on startup the app adds a nullable `side` column, and older entries simply have no side.
 
-If you prefer to run without Docker:
+## Local development
 
-1. **Set up a virtual environment**:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
+```bash
+# Backend (http://127.0.0.1:8000)
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
 
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+# Frontend (http://localhost:5173, proxies /api to :8000)
+cd frontend
+npm install
+npm run dev
+```
 
-3. **Run the server**:
-   ```bash
-   uvicorn main:app --reload --host 0.0.0.0 --port 8000
-   ```
+Without Node installed locally, you can use Docker:
 
-4. **Access**:
-   http://localhost:8000
+```bash
+docker run --rm -u $(id -u):$(id -g) -v $PWD/frontend:/app -w /app node:22-alpine sh -c "npm ci && npm run build"
+```
 
-## 📂 Project Structure
+FastAPI serves `frontend/dist` automatically once it is built.
 
-- `main.py`: Core application logic, API routes, and database handling.
-- `templates/`: HTML templates (Jinja2) using HTMX attributes.
-- `static/`: Assets (manifest, icons, etc.).
-- `Dockerfile` & `docker-compose.yml`: Containerization config.
+## API
 
-## 📝 License
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET    | `/api/summary?tz=&tz_offset=` | Last feed, sleep and weight, sleep state, 7-day totals (DST-aware with an IANA `tz`), birth date |
+| GET    | `/api/entries?type=&start=&end=&limit=&before_created_at=&before_id=` | History, newest first, keyset-paged (pass the last item of the previous page) |
+| POST   | `/api/feeds` | `{subtype, side?: "left" \| "right", amount_ml, notes?, created_at?}` (`side` applies only to `breast_milk`) |
+| POST   | `/api/weights` | `{weight_g, notes?, created_at?}` |
+| POST   | `/api/sleep` | `{action: "start" \| "stop", notes?}`; returns 409 if the state already changed (e.g. on another phone) |
+| PATCH  | `/api/entries/{id}` | Partial edit: only the fields sent are changed |
+| DELETE | `/api/entries/{id}` | Delete an entry |
+| GET/PUT| `/api/settings` | `{birthdate}` |
+
+Interactive docs: `/docs`.
+
+## Project structure
+
+```
+app/            FastAPI app (main.py routes, crud.py SQL, schemas.py models)
+frontend/       React SPA
+  src/screens/  Home, History, Settings
+  src/sheets/   Feed, Sleep, Weight, Edit bottom sheets
+  src/components/ UI kit (BottomSheet, Segmented, EntryRow, WeekChart, …)
+  public/       manifest, service worker, icons
+Dockerfile      multi-stage build
+```
+
+## License
 
 MIT

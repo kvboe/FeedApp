@@ -1,360 +1,243 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone, tzinfo
+from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Response
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
+from . import crud
 from .config import APP_NAME, BASE_DIR
-from .crud import (
-    create_feed,
-    create_weight,
-    delete_event,
-    get_daily_chart_data,
-    get_entries,
-    get_entry,
-    get_setting,
-    get_sleep_state,
-    get_stats,
-    set_setting,
-    toggle_sleep_state,
-    update_feed_event,
-    update_other_event,
-)
 from .database import init_db
-from .utils import (
-    get_ui_helpers,
-    parse_date_time_input,
-    parse_datetime_input,
+from .schemas import (
+    Entry,
+    EntryPage,
+    EntryUpdate,
+    EventType,
+    FeedCreate,
+    Settings,
+    SleepAction,
+    SleepActionResult,
+    Summary,
+    WeightCreate,
 )
+from .utils import now_iso, parse_iso, to_iso
 
-app = FastAPI(title=APP_NAME)
-
-app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+DIST_DIR = BASE_DIR / "frontend" / "dist"
 
 
-@app.on_event("startup")
-def on_startup() -> None:
+@asynccontextmanager
+async def lifespan(_: FastAPI):
     init_db()
+    yield
 
 
-@app.get("/", response_class=HTMLResponse)
-def index(request: Request) -> HTMLResponse:
-    start_date = request.query_params.get("start_date") or None
-    end_date = request.query_params.get("end_date") or None
-    sleep_state = get_sleep_state()
-    stats = get_stats()
-    chart_data = get_daily_chart_data()
+app = FastAPI(title=APP_NAME, lifespan=lifespan)
+api = APIRouter(prefix="/api")
 
-    birthdate_str = get_setting("birthdate")
-    age_days = None
-    if birthdate_str:
+
+def _clean_notes(notes: str | None) -> str | None:
+    return (notes or "").strip() or None
+
+
+def _entry_or_404(entry_id: int) -> dict:
+    entry = crud.get_entry(entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return entry
+
+
+def _iso_param(value: str | None, name: str) -> str | None:
+    """Validate an ISO datetime query param and normalise it to stored format."""
+    if not value:
+        return None
+    try:
+        return to_iso(parse_iso(value))
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"Invalid {name} datetime") from None
+
+
+def _resolve_tz(tz: str | None, tz_offset: int) -> tzinfo:
+    """Prefer the IANA zone (DST-correct); fall back to a fixed JS offset."""
+    if tz:
         try:
-            birth_date = datetime.strptime(birthdate_str, "%Y-%m-%d").date()
-            age_days = (datetime.now(timezone.utc).date() - birth_date).days
-        except ValueError:
+            return ZoneInfo(tz)
+        except (ZoneInfoNotFoundError, ValueError):
             pass
+    return timezone(timedelta(minutes=-tz_offset))
 
-    ctx = get_ui_helpers(request)
-    ctx.update(
-        {
-            "request": request,
-            "sleep_state": sleep_state,
-            "stats": stats,
-            "chart_data": chart_data,
-            "age_days": age_days,
-            "start_date": start_date or "",
-            "end_date": end_date or "",
-            "active_page": "home",
-            "app_name": APP_NAME,
-        }
+
+# ------------------------------------------------------------------ reads
+
+
+@api.get("/summary", response_model=Summary)
+def summary(
+    tz: str | None = Query(None, max_length=64),
+    tz_offset: int = Query(0, ge=-900, le=900),
+) -> dict:
+    return crud.get_summary(_resolve_tz(tz, tz_offset))
+
+
+@api.get("/entries", response_model=EntryPage)
+def entries(
+    start: str | None = None,
+    end: str | None = None,
+    type: EventType | None = None,
+    limit: int = Query(30, ge=1, le=200),
+    before_created_at: str | None = None,
+    before_id: int | None = None,
+) -> dict:
+    before = None
+    if before_created_at and before_id is not None:
+        before = (_iso_param(before_created_at, "before_created_at"), before_id)
+    items, has_more = crud.get_entries(
+        limit=limit,
+        before=before,
+        start=_iso_param(start, "start"),
+        end=_iso_param(end, "end"),
+        event_type=type,
     )
-    return templates.TemplateResponse("index.html", ctx)
+    return {"items": items, "has_more": has_more}
 
 
-@app.get("/history", response_class=HTMLResponse)
-def history(request: Request) -> HTMLResponse:
-    start_date = request.query_params.get("start_date") or None
-    end_date = request.query_params.get("end_date") or None
-    event_type = request.query_params.get("type") or None
-    entries = get_entries(
-        start_date=start_date, end_date=end_date, event_type=event_type
+@api.get("/entries/{entry_id}", response_model=Entry)
+def entry(entry_id: int) -> dict:
+    return _entry_or_404(entry_id)
+
+
+# ----------------------------------------------------------------- writes
+
+
+@api.post("/feeds", response_model=Entry, status_code=201)
+def log_feed(body: FeedCreate) -> dict:
+    created_at = to_iso(body.created_at) if body.created_at else now_iso()
+    side = body.side if body.subtype == "breast_milk" else None
+    entry_id = crud.create_feed(
+        body.subtype, side, body.amount_ml, _clean_notes(body.notes), created_at
     )
-    ctx = get_ui_helpers(request)
-    ctx.update(
-        {
-            "request": request,
-            "entries": entries,
-            "start_date": start_date or "",
-            "end_date": end_date or "",
-            "event_type": event_type or "",
-            "active_page": "history",
-            "app_name": APP_NAME,
-        }
-    )
-    return templates.TemplateResponse("history.html", ctx)
+    return crud.get_entry(entry_id)
 
 
-@app.get("/stats", response_class=HTMLResponse)
-def stats_partial(request: Request) -> HTMLResponse:
-    stats = get_stats()
-    ctx = get_ui_helpers(request)
-    ctx.update(
-        {
-            "request": request,
-            "stats": stats,
-            "stats_oob": False,
-        }
-    )
-    return templates.TemplateResponse("_stats.html", ctx)
+@api.post("/weights", response_model=Entry, status_code=201)
+def log_weight(body: WeightCreate) -> dict:
+    created_at = to_iso(body.created_at) if body.created_at else now_iso()
+    entry_id = crud.create_weight(body.weight_g, _clean_notes(body.notes), created_at)
+    return crud.get_entry(entry_id)
 
 
-@app.get("/entries", response_class=HTMLResponse)
-def entries_partial(request: Request) -> HTMLResponse:
-    start_date = request.query_params.get("start_date") or None
-    end_date = request.query_params.get("end_date") or None
-    event_type = request.query_params.get("type") or None
-    entries = get_entries(
-        start_date=start_date, end_date=end_date, event_type=event_type
-    )
-    ctx = get_ui_helpers(request)
-    ctx.update(
-        {
-            "request": request,
-            "entries": entries,
-            "start_date": start_date or "",
-            "end_date": end_date or "",
-            "event_type": event_type or "",
-        }
-    )
-    return templates.TemplateResponse("_entries.html", ctx)
-
-
-@app.post("/feed", response_class=HTMLResponse)
-def log_feed(
-    request: Request,
-    amount_ml: int = Form(120),
-    subtype: str = Form("formula"),
-    notes: str = Form(""),
-    created_at: str = Form(""),
-    created_date: str = Form(""),
-    created_time: str = Form(""),
-    minutes_ago: int = Form(0),
-    timezone_offset: int = Form(0),
-    start_date: str = Form(""),
-    end_date: str = Form(""),
-) -> HTMLResponse:
-    now_dt = datetime.now(timezone.utc)
-    created_at_dt = now_dt - timedelta(minutes=minutes_ago or 0)
-    if created_date or created_time:
-        created_at = parse_date_time_input(
-            created_date, created_time, created_at_dt, timezone_offset
-        )
-    else:
-        created_at = parse_datetime_input(created_at, created_at_dt, timezone_offset)
-
-    create_feed(subtype, amount_ml, notes.strip() or None, created_at)
-
-    entries = get_entries(
-        start_date=start_date or None,
-        end_date=end_date or None,
-    )
-    stats = get_stats()
-    ctx = get_ui_helpers(request)
-    ctx.update(
-        {
-            "request": request,
-            "entries": entries,
-            "stats": stats,
-            "stats_oob": False,
-            "start_date": start_date or "",
-            "end_date": end_date or "",
-        }
-    )
-    response = templates.TemplateResponse("_feed_response.html", ctx)
-    response.headers["HX-Trigger"] = '{"showToast": "Feed logged!"}'
-    return response
-
-
-@app.post("/sleep/toggle", response_class=HTMLResponse)
-def toggle_sleep(
-    request: Request,
-    notes: str = Form(""),
-    start_date: str = Form(""),
-    end_date: str = Form(""),
-) -> HTMLResponse:
-
-    sleep_state_res = toggle_sleep_state(notes.strip() or "")
-
-    entries = get_entries(
-        start_date=start_date or None,
-        end_date=end_date or None,
-    )
-    sleep_state = get_sleep_state()
-    stats = get_stats()
-
-    ctx = get_ui_helpers(request)
-    ctx.update(
-        {
-            "request": request,
-            "entries": entries,
-            "sleep_state": sleep_state,
-            "stats": stats,
-            "stats_oob": True,
-            "start_date": start_date or "",
-            "end_date": end_date or "",
-            "oob": True,
-        }
-    )
-    response = templates.TemplateResponse("_sleep_toggle_response.html", ctx)
-    if sleep_state["active"]:
-        response.headers["HX-Trigger"] = '{"showToast": "Sleep started..."}'
-    else:
-        response.headers["HX-Trigger"] = '{"showToast": "Sleep logged !"}'
-    return response
-
-
-@app.get("/entries/{entry_id}/edit", response_class=HTMLResponse)
-def edit_entry(entry_id: int, request: Request) -> HTMLResponse:
-    entry = get_entry(entry_id)
-    if not entry:
-        return HTMLResponse(status_code=404, content="Not found")
-    ctx = get_ui_helpers(request)
-    ctx.update(
-        {
-            "request": request,
-            "entry": entry,
-        }
-    )
-    return templates.TemplateResponse("_entry_edit.html", ctx)
-
-
-@app.post("/entries/{entry_id}", response_class=HTMLResponse)
-def update_entry(
-    entry_id: int,
-    request: Request,
-    amount_ml: int | None = Form(None),
-    subtype: str | None = Form(None),
-    created_at: str = Form(""),
-    created_date: str = Form(""),
-    created_time: str = Form(""),
-    started_at: str = Form(""),
-    started_date: str = Form(""),
-    started_time: str = Form(""),
-    ended_at: str = Form(""),
-    ended_date: str = Form(""),
-    ended_time: str = Form(""),
-    notes: str = Form(""),
-    timezone_offset: int = Form(0),
-) -> HTMLResponse:
-    entry = get_entry(entry_id)
-    if not entry:
-        return HTMLResponse(status_code=404, content="Not found")
-    now_dt = datetime.now(timezone.utc)
-
-    if entry["type"] == "feed":
-        amount = amount_ml if amount_ml is not None else entry["amount_ml"]
-        subtype_val = (
-            subtype
-            if subtype is not None
-            else (entry["subtype"] if "subtype" in entry.keys() else None)
-        )
-        if created_date or created_time:
-            created_at_value = parse_date_time_input(
-                created_date, created_time, now_dt, timezone_offset
-            )
+@api.post("/sleep", response_model=SleepActionResult)
+def sleep_action(body: SleepAction) -> dict:
+    try:
+        if body.action == "start":
+            result = crud.start_sleep()
         else:
-            created_at_value = parse_datetime_input(created_at, now_dt, timezone_offset)
-        update_feed_event(
-            entry_id, amount, subtype_val, notes.strip() or None, created_at_value
+            result = crud.stop_sleep(_clean_notes(body.notes))
+    except crud.SleepStateConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    entry_id = result.pop("entry_id")
+    result["entry"] = crud.get_entry(entry_id) if entry_id else None
+    return result
+
+
+@api.patch("/entries/{entry_id}", response_model=Entry)
+def update_entry(entry_id: int, body: EntryUpdate) -> dict:
+    """Partial update: only the fields present in the body are changed."""
+    entry = _entry_or_404(entry_id)
+    given = body.model_fields_set
+    fields: dict = {}
+
+    if "notes" in given:
+        fields["notes"] = _clean_notes(body.notes)
+
+    if entry["type"] in ("feed", "weight"):
+        if body.amount_ml is not None:
+            fields["amount_ml"] = body.amount_ml
+        if body.created_at is not None:
+            fields["created_at"] = to_iso(body.created_at)
+        if entry["type"] == "feed":
+            if body.subtype is not None:
+                fields["subtype"] = body.subtype
+            subtype = fields.get("subtype", entry["subtype"])
+            if subtype != "breast_milk":
+                if entry.get("side") is not None:
+                    fields["side"] = None  # a side only makes sense for mother's milk
+            elif "side" in given:
+                fields["side"] = body.side
+    elif body.started_at is not None or body.ended_at is not None:
+        # Untouched bounds keep their stored (second-precise) values.
+        started = body.started_at or _stored(entry["started_at"])
+        ended = body.ended_at or _stored(entry["ended_at"])
+        if started is None or ended is None:
+            raise HTTPException(status_code=422, detail="Sleep needs both start and end")
+        if ended < started:
+            raise HTTPException(status_code=422, detail="End must be after start")
+        fields.update(
+            started_at=to_iso(started),
+            ended_at=to_iso(ended),
+            duration_sec=int((ended - started).total_seconds()),
+            created_at=to_iso(ended),
         )
-    else:
-        if started_date or started_time:
-            started_at = parse_date_time_input(
-                started_date, started_time, now_dt, timezone_offset
-            )
-        else:
-            started_at = parse_datetime_input(started_at, now_dt, timezone_offset)
 
-        if ended_date or ended_time:
-            ended_at = parse_date_time_input(
-                ended_date, ended_time, now_dt, timezone_offset
-            )
-        else:
-            ended_at = parse_datetime_input(ended_at, now_dt, timezone_offset)
-        started_dt = datetime.fromisoformat(started_at)
-        ended_dt = datetime.fromisoformat(ended_at)
-        if ended_dt < started_dt:
-            ended_dt = started_dt
-            ended_at = ended_dt.isoformat(timespec="seconds")
-        duration_sec = int((ended_dt - started_dt).total_seconds())
-        update_other_event(
-            entry_id, started_at, ended_at, duration_sec, notes.strip() or None
+    crud.update_event(entry_id, fields)
+    return crud.get_entry(entry_id)
+
+
+def _stored(value: str | None) -> datetime | None:
+    return parse_iso(value) if value else None
+
+
+@api.delete("/entries/{entry_id}", status_code=204)
+def delete_entry(entry_id: int) -> Response:
+    if not crud.delete_event(entry_id):
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return Response(status_code=204)
+
+
+# --------------------------------------------------------------- settings
+
+
+@api.get("/settings", response_model=Settings)
+def get_settings() -> dict:
+    return {"birthdate": crud.get_setting("birthdate")}
+
+
+@api.put("/settings", response_model=Settings)
+def save_settings(body: Settings) -> dict:
+    crud.set_setting("birthdate", body.birthdate.isoformat() if body.birthdate else None)
+    return get_settings()
+
+
+app.include_router(api)
+
+
+# ------------------------------------------------------------ SPA hosting
+
+if (DIST_DIR / "assets").is_dir():
+    app.mount("/assets", StaticFiles(directory=DIST_DIR / "assets"), name="assets")
+
+
+@app.get("/{path:path}", include_in_schema=False)
+def spa(path: str) -> Response:
+    if path.startswith("api/"):
+        raise HTTPException(status_code=404)
+    index = DIST_DIR / "index.html"
+    if not index.is_file():
+        return Response(
+            "Frontend not built. Run the frontend build (see README).",
+            status_code=503,
+            media_type="text/plain",
         )
-
-    updated = get_entry(entry_id)
-    stats = get_stats()
-    ctx = get_ui_helpers(request)
-    ctx.update(
-        {
-            "request": request,
-            "entry": updated,
-            "stats": stats,
-            "stats_oob": True,
-        }
-    )
-    response = templates.TemplateResponse("_entry_update_response.html", ctx)
-    response.headers["HX-Trigger"] = '{"showToast": "Entry updated!"}'
-    return response
+    candidate = (DIST_DIR / path).resolve()
+    if path and candidate.is_file() and DIST_DIR.resolve() in candidate.parents:
+        return _file(candidate)
+    return _file(index)
 
 
-@app.delete("/entries/{entry_id}", response_class=HTMLResponse)
-def delete_entry_route(entry_id: int) -> HTMLResponse:
-    delete_event(entry_id)
-    response = HTMLResponse(status_code=200, content="")
-    response.headers["HX-Trigger"] = '{"showToast": "Entry deleted!"}'
-    return response
-
-
-@app.get("/settings", response_class=HTMLResponse)
-def settings_page(request: Request) -> HTMLResponse:
-    birthdate = get_setting("birthdate") or ""
-    return templates.TemplateResponse(
-        "settings.html",
-        {
-            "request": request,
-            "birthdate": birthdate,
-            "active_page": "settings",
-            "app_name": APP_NAME,
-        },
-    )
-
-
-@app.post("/settings", response_class=HTMLResponse)
-def save_settings(request: Request, birthdate: str = Form("")) -> HTMLResponse:
-    if birthdate:
-        set_setting("birthdate", birthdate)
-    return settings_page(request)
-
-
-@app.post("/weight", response_class=HTMLResponse)
-def log_weight_route(
-    request: Request,
-    weight_g: int = Form(...),
-    notes: str = Form(""),
-    created_at: str = Form(""),
-    timezone_offset: int = Form(0),
-) -> HTMLResponse:
-    now_dt = datetime.now(timezone.utc)
-    created_at = parse_datetime_input(created_at, now_dt, timezone_offset)
-
-    create_weight(weight_g, notes.strip() or None, created_at)
-
-    response = HTMLResponse(
-        status_code=200, content="<script>window.location.reload()</script>"
-    )
-    response.headers["HX-Trigger"] = '{"showToast": "Weight logged!"}'
-    return response
+def _file(path: Path) -> FileResponse:
+    # HTML / service worker / manifest must always revalidate so updates ship.
+    no_cache = path.suffix in {".html", ".webmanifest"} or path.name == "sw.js"
+    headers = {"Cache-Control": "no-cache"} if no_cache else {"Cache-Control": "public, max-age=86400"}
+    return FileResponse(path, headers=headers)
