@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="FeedApp icon">
-  <rect width="256" height="256" rx="56" fill="#0f172a" />
-  <g fill="none" stroke="#e2e8f0" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M112 44h32" />
-    <path d="M96 76h64" />
-    <path d="M96 76v96a32 32 0 0 0 64 0V76" />
-    <path d="M112 92h32" />
-  </g>
-</svg>
