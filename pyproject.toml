@@ -1,0 +1,17 @@
+[project]
+name = "feedapp"
+version = "2.0.0"
+description = "Self-hosted baby feed, sleep and weight tracker (PWA)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.6",
+    # Plain uvicorn (pure-Python h11 + asyncio) instead of uvicorn[standard]:
+    # plenty for a household app and keeps the Docker image small.
+    "uvicorn==0.30.6",
+    # IANA time zones for zoneinfo; the Alpine-based image has no system tz database.
+    "tzdata",
+]
+
+[tool.uv]
+# An application, not a library: install the dependencies only, never build the project.
+package = false

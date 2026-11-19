@@ -20,6 +20,7 @@ A full rewrite: a React single-page app on a FastAPI JSON API. The 1.x database 
 - **Edits:** only the changed fields are saved, so sleep durations no longer shift by seconds.
 - **Dates and time zones:** timestamps are stored in UTC; daily totals follow each phone's local days, including across DST changes.
 - **Validation:** dates, times and amounts are checked before saving.
+- **Smaller image:** about 65 MB instead of 190 MB: an Alpine base, dependencies installed with uv from a lockfile (`pyproject.toml` + `uv.lock` replace `requirements.txt`), and no build tools in the final image.
 - **History paging:** stable keyset pagination, with no duplicates when new entries arrive, plus database indexes.
 
 ### Security

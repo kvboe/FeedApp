@@ -8,18 +8,29 @@ RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 RUN npm run build
 
-# ---- 2. Python API + static hosting ----------------------------------------
-FROM python:3.12-slim
+# ---- 2. Python dependencies, installed with uv --------------------------------
+# Same base as the final stage, so the virtualenv's interpreter path and the
+# musl wheels match. Only the finished .venv is copied out; uv itself is not shipped.
+FROM python:3.12-alpine AS python-deps
+COPY --from=ghcr.io/astral-sh/uv:0.13.9 /uv /bin/uv
+ENV UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=0 UV_PROJECT_ENVIRONMENT=/app/.venv
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --no-install-project \
+ && find /app/.venv -name __pycache__ -prune -exec rm -rf {} +
+
+# ---- 3. Runtime: Python API + static hosting --------------------------------
+FROM python:3.12-alpine
 
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV DB_PATH=/data/feedapp.db
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH=/app/.venv/bin:$PATH \
+    DB_PATH=/data/feedapp.db
 
-COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
-
+COPY --from=python-deps /app/.venv /app/.venv
 COPY app /app/app
 COPY --from=frontend /frontend/dist /app/frontend/dist
 

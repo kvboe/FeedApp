@@ -75,7 +75,7 @@ Then open `http://<your-computer's-IP>:8001` on your phone. The full walkthrough
 - **[Docker](https://docs.docker.com/get-docker/)** with Docker Compose. On a Raspberry Pi: `curl -fsSL https://get.docker.com | sh`, then log out and back in.
 - **A phone** with Safari (iOS) or Chrome (Android), on the same Wi-Fi or connected through a VPN.
 
-The image is about 190 MB and needs very little memory, so a Raspberry Pi handles it easily.
+The image is about 65 MB (Alpine-based) and needs very little memory, so a Raspberry Pi handles it easily.
 
 ### 1. Run the server
 
@@ -312,8 +312,8 @@ Please leave out real names and personal data.
 | Layer | Tech |
 |---|---|
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, Motion, TanStack Query, NumberFlow, Lucide icons, Inter |
-| Backend | Python 3.12, FastAPI (JSON API under `/api`), Pydantic, SQLite |
-| Deploy | Multi-stage Docker image: Node builds the SPA, Python serves the API and the static files. GitHub Actions publishes amd64 and arm64 images to GHCR. |
+| Backend | Python 3.12, FastAPI (JSON API under `/api`), Pydantic, SQLite; dependencies managed with [uv](https://docs.astral.sh/uv/) (`pyproject.toml` + `uv.lock`) |
+| Deploy | Multi-stage Alpine image (~65 MB): Node builds the SPA, uv installs the locked Python dependencies, and only the virtualenv, the API and the static files reach the final image. GitHub Actions publishes amd64 and arm64 images to GHCR. |
 
 </details>
 
@@ -321,10 +321,9 @@ Please leave out real names and personal data.
 <summary><b>Local development</b></summary>
 
 ```bash
-# Backend (http://127.0.0.1:8000)
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+# Backend (http://127.0.0.1:8000). Needs uv: https://docs.astral.sh/uv/getting-started/installation/
+# uv creates .venv and installs the exact versions from uv.lock on first run.
+uv run uvicorn app.main:app --reload
 
 # Frontend with hot reload (http://localhost:5173, proxies /api to :8000)
 cd frontend
