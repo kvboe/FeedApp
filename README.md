@@ -45,7 +45,42 @@ A fast, installable Progressive Web App for tracking a baby's **feeds**, **sleep
 | Backend  | Python 3.12, FastAPI (JSON API under `/api`), Pydantic, SQLite |
 | Deploy   | Multi-stage Docker image: Node builds the SPA, and Python serves the API and the static build |
 
-## Run with Docker Compose (recommended)
+## Run the prebuilt image
+
+GitHub Actions publishes images for **amd64** and **arm64** (including Raspberry Pi 4/5) to GitHub Container Registry. See `.github/workflows/docker.yml`.
+
+```bash
+docker run -d --name feedapp --restart unless-stopped \
+  -p 8001:8000 -v feedapp_data:/data \
+  ghcr.io/kvboe/feedapp:latest
+```
+
+Or with Compose:
+
+```yaml
+services:
+  feedapp:
+    image: ghcr.io/kvboe/feedapp:latest
+    ports:
+      - "8001:8000"
+    volumes:
+      - feedapp_data:/data
+    restart: unless-stopped
+
+volumes:
+  feedapp_data:
+```
+
+| Tag | Built from |
+|-----|------------|
+| `latest`, `main` | the `main` branch |
+| `v2.0.0` | the `v2.0.0` branch |
+| `2.1.0`, `2.1`, `2` | the git tag `v2.1.0` |
+| `sha-<commit>` | a single commit |
+
+To update, run `docker pull ghcr.io/kvboe/feedapp:latest` and recreate the container. Data in the volume is kept.
+
+## Build and run with Docker Compose
 
 ```bash
 docker compose up -d --build
@@ -153,7 +188,8 @@ frontend/            React SPA
   src/components/    UI kit (BottomSheet, Segmented, EntryRow, WeekChart, …)
   src/lib/           API client, queries, time helpers, types
   public/            manifest, service worker, icons
-Dockerfile           multi-stage build
+Dockerfile           multi-stage build (multi-arch ready)
+.github/workflows/  CI: build and publish the image to ghcr.io
 docker-compose.yml   production service on port 8001
 ```
 
