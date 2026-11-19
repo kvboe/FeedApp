@@ -4,12 +4,12 @@ name: Docker image
 # to GitHub Container Registry as ghcr.io/<owner>/feedapp.
 #
 # Tags:
-#   main branch        -> latest, main, sha-<short>
-#   v2.0.0 branch      -> v2.0.0, sha-<short>
-#   git tag v2.1.0     -> 2.1.0, 2.1, 2, sha-<short>
+#   default branch (v2.0.0) -> latest, v2.0.0, sha-<short>
+#   other v* branches       -> <branch>, sha-<short>
+#   git tag v2.1.0          -> 2.1.0, 2.1, 2, sha-<short>
 on:
   push:
-    branches: [main, "v*"]
+    branches: ["v*"]
     tags: ["v*.*.*"]
   workflow_dispatch:
 
