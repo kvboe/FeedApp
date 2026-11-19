@@ -73,8 +73,7 @@ volumes:
 
 | Tag | Built from |
 |-----|------------|
-| `latest`, `main` | the `main` branch |
-| `v2.0.0` | the `v2.0.0` branch |
+| `latest`, `v2.0.0` | the default branch, `v2.0.0` |
 | `2.1.0`, `2.1`, `2` | the git tag `v2.1.0` |
 | `sha-<commit>` | a single commit |
 
@@ -204,6 +203,13 @@ docker-compose.yml   production service on port 8001
 - **Date correctness**: DST-correct 7-day totals.
 - **History**: stable keyset pagination with no duplicates when new entries arrive, plus database indexes.
 - **PWA**: a service worker with a per-build cache, so updates arrive reliably.
+
+## Branches
+
+| Branch | Contents |
+|--------|----------|
+| `v2.0.0` (default) | the current app: React + FastAPI |
+| `legacy` | the original v1: FastAPI + HTMX + Jinja |
 
 ## License
 
